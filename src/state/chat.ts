@@ -26,9 +26,6 @@ type ChatState = {
 
 const previewMessages: ChatMessage[] = [
   { id: 'preview-1', kind: 'text', role: 'assistant', text: 'Good morning. Want help choosing something, logging what you wore, or adding a garment?' },
-  { id: 'preview-2', kind: 'text', role: 'user', text: 'I bought this blue shirt yesterday.' },
-  { id: 'preview-3', kind: 'status', stage: 'analyzing_image', text: 'Analyzing garment…' },
-  { id: 'preview-4', kind: 'confirmation', title: 'I found one new shirt', description: 'It looks like a light blue button-down with a structured collar and a single chest pocket.', garmentName: 'Light blue button-down', tags: ['new', 'shirt', 'workwear'] },
 ];
 
 export const useChatStore = create<ChatState>((set) => ({

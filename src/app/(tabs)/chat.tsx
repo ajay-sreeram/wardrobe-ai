@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { coordinateImageObservation } from '@/agents/coordinator';
 import { requestMuseReply } from '@/agents/coordinator/muse';
-import { analyzeGarmentImages } from '@/agents/vision';
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { AppText } from '@/components/ui/AppText';
@@ -73,16 +73,18 @@ export default function ChatScreen() {
       sendMessage(imageMessages);
 
       if (submittedImages.length) {
-        if (!developmentEnv.geminiApiKey) {
-          addError('Gemini is not configured. Add GEMINI_API_KEY to local-secrets/.env, then restart Expo with a cleared cache.');
+        if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
+          addError('Image analysis needs MUSE_API_KEY and GEMINI_API_KEY in local-secrets/.env. Restart Expo after adding them.');
           return;
         }
 
-        const analysis = await analyzeGarmentImages(
-          developmentEnv.geminiApiKey,
-          imageMessages.map((image, index) => ({ uri: image.uri, mimeType: submittedImages[index].mimeType })),
-          submittedText,
-        );
+        const analysis = await coordinateImageObservation({
+          museApiKey: developmentEnv.museApiKey,
+          geminiApiKey: developmentEnv.geminiApiKey,
+          images: imageMessages.map((image, index) => ({ uri: image.uri, mimeType: submittedImages[index].mimeType })),
+          userMessage: submittedText,
+          onProgress: setProgressText,
+        });
 
         if (!analysis.garments.length) {
           addAssistantMessage(analysis.note || 'I could not identify a garment clearly in those photos. Try a closer or better-lit photo.');
@@ -95,6 +97,7 @@ export default function ChatScreen() {
           title: analysis.garments.length === 1 ? 'I found one garment' : `Garment ${index + 1} of ${analysis.garments.length}`,
           description: garment.description,
           garmentName: garment.name,
+          sourceImageUri: imageMessages[Math.min(garment.sourceImageIndex, imageMessages.length - 1)]?.uri,
           tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
         })));
         if (analysis.note) addAssistantMessage(analysis.note);

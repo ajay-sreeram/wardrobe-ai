@@ -16,6 +16,7 @@ export const garmentObservationSchema = z.object({
   colors: z.array(z.string().min(1)).max(5),
   tags: z.array(z.string().min(1)).max(8),
   confidence: z.number().min(0).max(1),
+  sourceImageIndex: z.number().int().nonnegative(),
 });
 
 export type GarmentObservation = z.infer<typeof garmentObservationSchema>;
@@ -50,8 +51,9 @@ const outputJsonSchema = {
           colors: { type: 'array', items: { type: 'string' }, maxItems: 5 },
           tags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
+          sourceImageIndex: { type: 'integer', minimum: 0, description: 'Zero-based index of the photo that shows this garment most clearly.' },
         },
-        required: ['name', 'category', 'description', 'colors', 'tags', 'confidence'],
+        required: ['name', 'category', 'description', 'colors', 'tags', 'confidence', 'sourceImageIndex'],
       },
       maxItems: 12,
     },
@@ -61,6 +63,7 @@ const outputJsonSchema = {
 } as const;
 
 type VisionImage = { uri: string; mimeType: string | null };
+type VisionContext = { focusGarments: string[]; intent: string; userMessage: string };
 
 export class VisionRequestError extends Error {
   constructor(message: string) {
@@ -84,7 +87,7 @@ function parseJsonObject(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-export async function analyzeGarmentImages(apiKey: string, images: VisionImage[], userContext?: string) {
+export async function analyzeGarmentImages(apiKey: string, images: VisionImage[], context: VisionContext) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
 
@@ -112,7 +115,12 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
         input: [
           {
             type: 'text',
-            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain.${userContext ? `\nUser context: ${userContext}` : ''}\nReturn only one JSON object matching this schema, with no commentary or Markdown:\n${JSON.stringify(outputJsonSchema)}`,
+            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain.
+User message: ${context.userMessage || '(no message)'}
+Coordinator intent: ${context.intent}
+${context.focusGarments.length ? `Strict selection: Return ONLY garments matching these user-requested types: ${context.focusGarments.join(', ')}. Treat every other visible garment as background context and do not include it in garments.` : 'Selection: The user did not identify a specific garment type, so return all clearly visible garments.'}
+Return only one JSON object matching this schema, with no commentary or Markdown:
+${JSON.stringify(outputJsonSchema)}`,
           },
           ...encodedImages,
         ],

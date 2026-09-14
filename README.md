@@ -14,8 +14,9 @@ The app currently includes:
 - strict TypeScript and Zod-validated domain boundaries
 - chat-only image selection with an explicit preview and send step
 - structured garment analysis through Gemini for only the photos attached to the current message
+- explicit section confirmation before the Wardrobe Agent saves a garment locally
 
-Canonical garment image generation, gallery scanning, and wardrobe editing are intentionally deferred.
+Canonical garment image generation, gallery scanning, and advanced wardrobe editing are intentionally deferred.
 
 The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send, then only those attachments are sent to Gemini for garment analysis. Text-only chat messages are sent to Muse.
 

@@ -2,6 +2,16 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { garmentSchema, type Garment, type WardrobeSection, type WearEntry } from '@/models/wardrobe';
 
+export type WardrobeSectionOption = { id: string; name: string };
+export type NewGarment = {
+  id: string;
+  name: string;
+  sectionId: string;
+  description: string;
+  tags: string[];
+  sourceImageUri?: string;
+};
+
 type GarmentRow = {
   id: string;
   name: string;
@@ -40,6 +50,39 @@ export async function getWardrobeSections(db: SQLiteDatabase): Promise<WardrobeS
     ...section,
     garments: garments.filter((garment) => garment.sectionId === section.id),
   }));
+}
+
+export async function getWardrobeSectionOptions(db: SQLiteDatabase): Promise<WardrobeSectionOption[]> {
+  return db.getAllAsync<WardrobeSectionOption>('SELECT id, name FROM sections ORDER BY position');
+}
+
+export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO garments
+        (id, name, section_id, description, tags, canonical_image, created_at, updated_at, wear_count, last_worn_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, NULL)`,
+      garment.id,
+      garment.name,
+      garment.sectionId,
+      garment.description,
+      JSON.stringify(garment.tags),
+      now,
+      now,
+    );
+
+    if (garment.sourceImageUri) {
+      await db.runAsync(
+        'INSERT INTO garment_images (id, garment_id, image_path, image_type, created_at) VALUES (?, ?, ?, ?, ?)',
+        `image-${garment.id}`,
+        garment.id,
+        garment.sourceImageUri,
+        'observation',
+        now,
+      );
+    }
+  });
 }
 
 export async function getWearTimeline(db: SQLiteDatabase): Promise<WearEntry[]> {

@@ -5,19 +5,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
+import { developmentEnv } from '@/config/env';
 import { colors, radius, spacing } from '@/theme/tokens';
-
-const rows = [
-  ['albums-outline', 'Gallery scanning', 'Off'],
-  ['layers-outline', 'Manage sections', '4 sections'],
-  ['pricetags-outline', 'Manage tags', '12 tags'],
-  ['notifications-outline', 'Notifications', 'Off'],
-  ['shield-checkmark-outline', 'Privacy & local data', 'On device'],
-  ['sparkles-outline', 'AI behavior', 'Not connected'],
-] as const;
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
+
+  const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
+    { icon: 'albums-outline', label: 'Gallery scanning', value: 'Disabled' },
+    { icon: 'layers-outline', label: 'Manage sections', value: '4 sections' },
+    { icon: 'pricetags-outline', label: 'Manage tags', value: '12 tags' },
+    { icon: 'notifications-outline', label: 'Notifications', value: 'Off' },
+    { icon: 'shield-checkmark-outline', label: 'Privacy & local data', value: 'On device' },
+    { icon: 'sparkles-outline', label: 'AI behavior', value: providerCount ? `${providerCount} dev env` : 'Not connected' },
+  ];
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -38,16 +40,15 @@ export default function SettingsScreen() {
           </View>
         </Card>
         <View style={styles.group}>
-          {rows.map(([icon, label, value], index) => (
-            <Pressable key={label} style={[styles.row, index < rows.length - 1 && styles.rowBorder]}>
-              <Ionicons color={colors.moss} name={icon} size={21} />
-              <AppText style={styles.flex}>{label}</AppText>
-              <AppText variant="caption" style={styles.muted}>{value}</AppText>
-              <Ionicons color={colors.inkMuted} name="chevron-forward" size={17} />
-            </Pressable>
+          {rows.map((row, index) => (
+            <View key={row.label} style={[styles.row, index < rows.length - 1 && styles.rowBorder]}>
+              <Ionicons color={colors.moss} name={row.icon} size={21} />
+              <AppText style={styles.flex}>{row.label}</AppText>
+              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
+            </View>
           ))}
         </View>
-        <AppText variant="caption" style={styles.footnote}>Live OpenAI and Gemini credentials are intentionally not configured in this milestone.</AppText>
+        <AppText variant="caption" style={styles.footnote}>Development keys load from local-secrets/.env and are bundled temporarily. Do not distribute this build.</AppText>
       </ScrollView>
     </SafeAreaView>
   );

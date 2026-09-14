@@ -7,16 +7,16 @@ An iOS-first, local-first wardrobe assistant built with Expo SDK 57 and React Na
 The app currently includes:
 
 - Chat, Wardrobe, and Timeline tabs
-- rich chat message, progress, and confirmation examples
+- live text conversation through Muse
 - an on-device SQLite schema with development seed data
 - on-device Markdown memory initialization
 - a small internal design system
 - strict TypeScript and Zod-validated domain boundaries
 - chat-only image selection with an explicit preview and send step
 
-Live AI analysis, gallery scanning, and wardrobe editing are intentionally deferred.
+Image analysis, gallery scanning, and wardrobe editing are intentionally deferred.
 
-The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send; they are not sent to an AI provider in the current milestone.
+The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send; they are not sent to an AI provider in the current milestone. Text-only chat messages are sent to Muse.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ Requirements: Node.js 22.13 or newer and Expo Go with SDK 57, or Xcode 26.4 or n
 
 ```bash
 npm install
-npx expo start
+npx expo start --clear
 ```
 
 Then scan the QR code in Expo Go. The app initializes `wardrobe.db`, `memory/USER.md`, and `memory/RECENT.md` inside its private device storage on first launch.
@@ -40,6 +40,8 @@ npx expo-doctor
 npx expo export --platform ios
 ```
 
-## Local API references
+## Development API configuration
 
-When AI integration begins, development-only curl samples or credentials can be placed under `local-secrets/`. The directory is ignored by Git and must never be imported into the application bundle. Runtime user credentials will use `expo-secure-store` after the credential strategy is agreed.
+Create `local-secrets/.env` with `MUSE_API_KEY` and `GEMINI_API_KEY`. The folder is ignored by Git, but Expo currently embeds these values in the development client bundle. Never distribute this build through TestFlight or the App Store. Restart with `npx expo start --clear` after changing the file.
+
+The production credential design will move provider secrets behind a server boundary before distribution.

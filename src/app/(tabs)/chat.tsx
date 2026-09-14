@@ -1,22 +1,32 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { requestMuseReply } from '@/agents/coordinator/muse';
+import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { developmentEnv } from '@/config/env';
+import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
 import { persistChatImage } from '@/storage/chatImages';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
-  const { addError, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const { addAssistantMessage, addError, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const [sending, setSending] = useState(false);
   const canSend = Boolean(draft.trim() || pendingImages.length) && !sending;
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [messages.length]);
 
   async function chooseImages() {
     try {
@@ -45,9 +55,11 @@ export default function ChatScreen() {
 
   async function handleSend() {
     if (!canSend) return;
+    const submittedText = draft.trim();
+    const submittedImages = [...pendingImages];
     setSending(true);
     try {
-      const imageMessages = await Promise.all(pendingImages.map(async (image) => ({
+      const imageMessages = await Promise.all(submittedImages.map(async (image) => ({
         id: image.id,
         kind: 'image' as const,
         role: 'user' as const,
@@ -56,8 +68,20 @@ export default function ChatScreen() {
         height: image.height,
       })));
       sendMessage(imageMessages);
-    } catch {
-      addError('I could not save that image locally. Your selection was not sent.');
+
+      if (submittedImages.length) {
+        addAssistantMessage(`I saved ${submittedImages.length === 1 ? 'that selected photo' : `those ${submittedImages.length} selected photos`} on this device. Image analysis is not connected yet, so nothing was sent to an AI provider.`);
+        return;
+      }
+
+      if (!developmentEnv.museApiKey) {
+        addError('Muse is not configured. Add MUSE_API_KEY to local-secrets/.env, then restart Expo with a cleared cache.');
+        return;
+      }
+
+      addAssistantMessage(await requestMuseReply(developmentEnv.museApiKey, submittedText));
+    } catch (error) {
+      addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');
     } finally {
       setSending(false);
     }
@@ -72,8 +96,10 @@ export default function ChatScreen() {
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
+          ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} />}
         />
+        {sending ? <View style={styles.progress}><AgentProgress text="Thinking…" /></View> : null}
         <View style={styles.composerWrap}>
           {pendingImages.length ? (
             <View style={styles.pendingRow}>
@@ -131,6 +157,7 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   separator: { height: spacing.md },
   composerWrap: { backgroundColor: colors.background, paddingBottom: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  progress: { paddingBottom: spacing.xs, paddingHorizontal: spacing.lg },
   pendingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.xs },
   pendingImageWrap: { height: 64, width: 52 },
   pendingImage: { borderRadius: 10, height: 64, width: 52 },

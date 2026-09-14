@@ -20,6 +20,7 @@ type ChatState = {
   removePendingImage: (id: string) => void;
   sendMessage: (images: ChatMessage[]) => void;
   addError: (text: string) => void;
+  addAssistantMessage: (text: string) => void;
 };
 
 const previewMessages: ChatMessage[] = [
@@ -46,4 +47,7 @@ export const useChatStore = create<ChatState>((set) => ({
     pendingImages: [],
   })),
   addError: (text) => set((state) => ({ messages: [...state.messages, { id: `error-${Date.now()}`, kind: 'error', text }] })),
+  addAssistantMessage: (text) => set((state) => ({
+    messages: [...state.messages, { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text }],
+  })),
 }));

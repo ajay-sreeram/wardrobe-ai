@@ -1,56 +1,42 @@
-# Welcome to your Expo app 👋
+# Wardrobe
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An iOS-first, local-first wardrobe assistant built with Expo SDK 57 and React Native.
 
-## Get started
+## Current milestone
 
-1. Install dependencies
+The app currently includes:
 
-   ```bash
-   npm install
-   ```
+- Chat, Wardrobe, and Timeline tabs
+- rich chat message, progress, and confirmation examples
+- an on-device SQLite schema with development seed data
+- on-device Markdown memory initialization
+- a small internal design system
+- strict TypeScript and Zod-validated domain boundaries
 
-2. Start the app
+Live AI, image ingestion, gallery access, and wardrobe editing are intentionally deferred.
 
-   ```bash
-   npx expo start
-   ```
+## Run locally
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Requirements: Node.js 22.13 or newer and Expo Go with SDK 57, or Xcode 26.4 or newer for an iOS Simulator.
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then scan the QR code in Expo Go. The app initializes `wardrobe.db`, `memory/USER.md`, and `memory/RECENT.md` inside its private device storage on first launch.
 
-### Other setup steps
+For the web preview, press `W` in the Expo terminal or run `npm run web`. SQLite web support is alpha in Expo; the included Metro configuration provides its required WebAssembly and cross-origin-isolation setup.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Checks
 
-## Learn more
+```bash
+npm run typecheck
+npm run lint
+npx expo-doctor
+npx expo export --platform ios
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Local API references
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+When AI integration begins, development-only curl samples or credentials can be placed under `local-secrets/`. The directory is ignored by Git and must never be imported into the application bundle. Runtime user credentials will use `expo-secure-store` after the credential strategy is agreed.

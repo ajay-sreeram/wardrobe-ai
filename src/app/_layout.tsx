@@ -1,18 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
+import { SQLiteProvider } from 'expo-sqlite';
+import { StatusBar } from 'expo-status-bar';
+import { Suspense } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import 'react-native-reanimated';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { initializeDatabase } from '@/database';
+import { colors } from '@/theme/tokens';
 
-SplashScreen.preventAutoHideAsync();
+function Loading() {
+  return <View style={styles.loading}><ActivityIndicator color={colors.moss} /></View>;
+}
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Suspense fallback={<Loading />}>
+      <SQLiteProvider databaseName="wardrobe.db" onInit={initializeDatabase} useSuspense>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ contentStyle: { backgroundColor: colors.background }, headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+        </Stack>
+      </SQLiteProvider>
+    </Suspense>
   );
 }
+
+const styles = StyleSheet.create({ loading: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center' } });

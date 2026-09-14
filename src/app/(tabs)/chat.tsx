@@ -1,23 +1,68 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatMessage } from '@/components/chat/ChatMessage';
+import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
+import { persistChatImage } from '@/storage/chatImages';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-const messages: ChatMessageModel[] = [
-  { id: '1', kind: 'text', role: 'assistant', text: 'Good morning. Want help choosing something, logging what you wore, or adding a garment?' },
-  { id: '2', kind: 'text', role: 'user', text: 'I bought this blue shirt yesterday.' },
-  { id: '3', kind: 'status', stage: 'analyzing_image', text: 'Analyzing garment…' },
-  { id: '4', kind: 'confirmation', title: 'I found one new shirt', description: 'It looks like a light blue button-down with a structured collar and a single chest pocket.', garmentName: 'Light blue button-down', tags: ['new', 'shirt', 'workwear'] },
-];
-
 export default function ChatScreen() {
-  const { draft, setDraft, clearDraft } = useChatStore();
+  const { addError, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const [sending, setSending] = useState(false);
+  const canSend = Boolean(draft.trim() || pendingImages.length) && !sending;
+
+  async function chooseImages() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        mediaTypes: ['images'],
+        orderedSelection: true,
+        quality: 0.9,
+        selectionLimit: Math.max(1, 4 - pendingImages.length),
+      });
+      if (result.canceled) return;
+
+      const batchId = Date.now();
+      addPendingImages(result.assets.map((asset, index) => ({
+        id: `observation-${batchId}-${index}`,
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        fileName: asset.fileName ?? null,
+        mimeType: asset.mimeType ?? null,
+      })));
+    } catch {
+      addError('I could not open the photo picker. Please try again.');
+    }
+  }
+
+  async function handleSend() {
+    if (!canSend) return;
+    setSending(true);
+    try {
+      const imageMessages = await Promise.all(pendingImages.map(async (image) => ({
+        id: image.id,
+        kind: 'image' as const,
+        role: 'user' as const,
+        uri: await persistChatImage(image),
+        width: image.width,
+        height: image.height,
+      })));
+      sendMessage(imageMessages);
+    } catch {
+      addError('I could not save that image locally. Your selection was not sent.');
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={88} style={styles.flex}>
@@ -30,8 +75,26 @@ export default function ChatScreen() {
           renderItem={({ item }) => <ChatMessage message={item} />}
         />
         <View style={styles.composerWrap}>
+          {pendingImages.length ? (
+            <View style={styles.pendingRow}>
+              {pendingImages.map((image) => (
+                <View key={image.id} style={styles.pendingImageWrap}>
+                  <Image contentFit="cover" source={{ uri: image.uri }} style={styles.pendingImage} />
+                  <Pressable accessibilityLabel="Remove selected image" hitSlop={8} onPress={() => removePendingImage(image.id)} style={styles.removeImage}>
+                    <Ionicons color={colors.surface} name="close" size={14} />
+                  </Pressable>
+                </View>
+              ))}
+              <View style={styles.selectionNote}>
+                <Ionicons color={colors.moss} name="shield-checkmark-outline" size={16} />
+                <View>
+                  <AppPrivacyText count={pendingImages.length} />
+                </View>
+              </View>
+            </View>
+          ) : null}
           <View style={styles.composer}>
-            <Pressable accessibilityLabel="Attach garment photo" hitSlop={8} style={styles.attach}>
+            <Pressable accessibilityLabel="Attach garment photo" disabled={pendingImages.length >= 4 || sending} hitSlop={8} onPress={chooseImages} style={styles.attach}>
               <Ionicons color={colors.moss} name="add" size={24} />
             </Pressable>
             <TextInput
@@ -43,7 +106,7 @@ export default function ChatScreen() {
               style={styles.input}
               value={draft}
             />
-            <Pressable accessibilityLabel="Send message" disabled={!draft.trim()} onPress={clearDraft} style={[styles.send, !draft.trim() && styles.sendDisabled]}>
+            <Pressable accessibilityLabel="Send message" disabled={!canSend} onPress={handleSend} style={[styles.send, !canSend && styles.sendDisabled]}>
               <Ionicons color={colors.surface} name="arrow-up" size={20} />
             </Pressable>
           </View>
@@ -53,12 +116,28 @@ export default function ChatScreen() {
   );
 }
 
+function AppPrivacyText({ count }: { count: number }) {
+  return (
+    <>
+      <AppText variant="caption" style={styles.selectionTitle}>{count} selected</AppText>
+      <AppText variant="caption" style={styles.selectionCaption}>Only these photos</AppText>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   flex: { flex: 1 },
   listContent: { paddingBottom: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   separator: { height: spacing.md },
   composerWrap: { backgroundColor: colors.background, paddingBottom: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  pendingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.sm, paddingHorizontal: spacing.xs },
+  pendingImageWrap: { height: 64, width: 52 },
+  pendingImage: { borderRadius: 10, height: 64, width: 52 },
+  removeImage: { alignItems: 'center', backgroundColor: 'rgba(30,33,30,0.82)', borderRadius: 10, height: 20, justifyContent: 'center', position: 'absolute', right: -5, top: -5, width: 20 },
+  selectionNote: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.xs },
+  selectionTitle: { color: colors.ink },
+  selectionCaption: { color: colors.inkMuted, fontSize: 12 },
   composer: { alignItems: 'flex-end', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 56, padding: 6 },
   attach: { alignItems: 'center', backgroundColor: colors.mossSoft, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   input: { color: colors.ink, flex: 1, fontSize: 16, lineHeight: 22, maxHeight: 100, minHeight: 44, paddingHorizontal: 4, paddingVertical: 11 },

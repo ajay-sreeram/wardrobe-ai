@@ -12,8 +12,11 @@ The app currently includes:
 - on-device Markdown memory initialization
 - a small internal design system
 - strict TypeScript and Zod-validated domain boundaries
+- chat-only image selection with an explicit preview and send step
 
-Live AI, image ingestion, gallery access, and wardrobe editing are intentionally deferred.
+Live AI analysis, gallery scanning, and wardrobe editing are intentionally deferred.
+
+The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send; they are not sent to an AI provider in the current milestone.
 
 ## Run locally
 

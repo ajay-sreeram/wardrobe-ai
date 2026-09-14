@@ -7,6 +7,7 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { requestMuseReply } from '@/agents/coordinator/muse';
+import { analyzeGarmentImages } from '@/agents/vision';
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { AppText } from '@/components/ui/AppText';
@@ -18,9 +19,10 @@ import { persistChatImage } from '@/storage/chatImages';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
-  const { addAssistantMessage, addError, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const [sending, setSending] = useState(false);
+  const [progressText, setProgressText] = useState('Thinking…');
   const canSend = Boolean(draft.trim() || pendingImages.length) && !sending;
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function ChatScreen() {
     if (!canSend) return;
     const submittedText = draft.trim();
     const submittedImages = [...pendingImages];
+    setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
     try {
       const imageMessages = await Promise.all(submittedImages.map(async (image) => ({
@@ -70,7 +73,31 @@ export default function ChatScreen() {
       sendMessage(imageMessages);
 
       if (submittedImages.length) {
-        addAssistantMessage(`I saved ${submittedImages.length === 1 ? 'that selected photo' : `those ${submittedImages.length} selected photos`} on this device. Image analysis is not connected yet, so nothing was sent to an AI provider.`);
+        if (!developmentEnv.geminiApiKey) {
+          addError('Gemini is not configured. Add GEMINI_API_KEY to local-secrets/.env, then restart Expo with a cleared cache.');
+          return;
+        }
+
+        const analysis = await analyzeGarmentImages(
+          developmentEnv.geminiApiKey,
+          imageMessages.map((image, index) => ({ uri: image.uri, mimeType: submittedImages[index].mimeType })),
+          submittedText,
+        );
+
+        if (!analysis.garments.length) {
+          addAssistantMessage(analysis.note || 'I could not identify a garment clearly in those photos. Try a closer or better-lit photo.');
+          return;
+        }
+
+        addMessages(analysis.garments.map((garment, index) => ({
+          id: `garment-preview-${Date.now()}-${index}`,
+          kind: 'confirmation' as const,
+          title: analysis.garments.length === 1 ? 'I found one garment' : `Garment ${index + 1} of ${analysis.garments.length}`,
+          description: garment.description,
+          garmentName: garment.name,
+          tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
+        })));
+        if (analysis.note) addAssistantMessage(analysis.note);
         return;
       }
 
@@ -99,7 +126,7 @@ export default function ChatScreen() {
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} />}
         />
-        {sending ? <View style={styles.progress}><AgentProgress text="Thinking…" /></View> : null}
+        {sending ? <View style={styles.progress}><AgentProgress text={progressText} /></View> : null}
         <View style={styles.composerWrap}>
           {pendingImages.length ? (
             <View style={styles.pendingRow}>

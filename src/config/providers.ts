@@ -4,6 +4,7 @@ export const providerConfig = {
     model: 'muse-spark-1.3-contributor',
   },
   gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     model: 'models/gemini-3.1-flash-lite-image',
   },
 } as const;

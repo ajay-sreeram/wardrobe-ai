@@ -13,10 +13,11 @@ The app currently includes:
 - a small internal design system
 - strict TypeScript and Zod-validated domain boundaries
 - chat-only image selection with an explicit preview and send step
+- structured garment analysis through Gemini for only the photos attached to the current message
 
-Image analysis, gallery scanning, and wardrobe editing are intentionally deferred.
+Canonical garment image generation, gallery scanning, and wardrobe editing are intentionally deferred.
 
-The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send; they are not sent to an AI provider in the current milestone. Text-only chat messages are sent to Muse.
+The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Selected images are copied into app-private storage when the user presses Send, then only those attachments are sent to Gemini for garment analysis. Text-only chat messages are sent to Muse.
 
 ## Run locally
 

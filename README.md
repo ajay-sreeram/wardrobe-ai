@@ -25,6 +25,7 @@ The app currently includes:
 - garment details and editing for names, tags, and sections, with confirmed recoverable archiving
 - persistent garment and section ordering, plus section creation and renaming
 - tap-to-open garment cards with long-press horizontal drag reordering
+- switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - pending outfit context across Chat follow-ups and combined add-plus-log handling for worn photo uploads

@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 
@@ -19,9 +20,12 @@ import { useChatStore } from '@/state/chat';
 export default function WardrobeScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const setDraft = useChatStore((state) => state.setDraft);
   const [sections, setSections] = useState<WardrobeSection[]>([]);
   const [organizingSectionId, setOrganizingSectionId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'sections' | 'grid'>('sections');
+  const [query, setQuery] = useState('');
 
   const loadSections = useCallback(async () => setSections(await getWardrobeSections(db)), [db]);
 
@@ -32,6 +36,16 @@ export default function WardrobeScreen() {
   }, [db]));
 
   const garmentCount = sections.reduce((total, section) => total + section.garments.length, 0);
+  const allGarments = useMemo(() => sections.flatMap((section) => section.garments), [sections]);
+  const filteredGarments = useMemo(() => {
+    const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return allGarments;
+    return allGarments.filter((garment) => {
+      const searchable = [garment.name, garment.description ?? '', ...garment.tags].join(' ').toLocaleLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    });
+  }, [allGarments, query]);
+  const gridColumns = Math.max(2, Math.min(5, Math.floor((width - spacing.lg * 2) / 105)));
 
   function addToSection(sectionName: string) {
     setDraft(`I want to add a garment to ${sectionName}.`);
@@ -65,7 +79,18 @@ export default function WardrobeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScreenHeader eyebrow={`${garmentCount} pieces · ${sections.length} sections`} title="Wardrobe" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View accessibilityLabel="Wardrobe view" style={styles.viewSwitch}>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: viewMode === 'sections' }} onPress={() => setViewMode('sections')} style={[styles.viewOption, viewMode === 'sections' && styles.viewOptionSelected]}>
+          <Ionicons color={viewMode === 'sections' ? colors.surface : colors.inkMuted} name="albums-outline" size={17} />
+          <AppText variant="label" style={viewMode === 'sections' ? styles.viewOptionTextSelected : styles.viewOptionText}>Sections</AppText>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: viewMode === 'grid' }} onPress={() => { setOrganizingSectionId(null); setViewMode('grid'); }} style={[styles.viewOption, viewMode === 'grid' && styles.viewOptionSelected]}>
+          <Ionicons color={viewMode === 'grid' ? colors.surface : colors.inkMuted} name="grid-outline" size={17} />
+          <AppText variant="label" style={viewMode === 'grid' ? styles.viewOptionTextSelected : styles.viewOptionText}>All pieces</AppText>
+        </Pressable>
+      </View>
+
+      {viewMode === 'sections' ? <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!garmentCount ? (
           <View style={styles.intro}>
             <View style={styles.introIcon}><Ionicons color={colors.clay} name="sparkles-outline" size={22} /></View>
@@ -123,13 +148,64 @@ export default function WardrobeScreen() {
           </View>
         ))}
         <AppButton label="Create a section" onPress={() => router.push({ pathname: '/section/[id]', params: { id: 'new' } })} tone="secondary" style={styles.createSection} />
-      </ScrollView>
+      </ScrollView> : (
+        <View style={styles.gridView}>
+          <View style={styles.searchBox}>
+            <Ionicons color={colors.inkMuted} name="search" size={20} />
+            <TextInput
+              accessibilityLabel="Search wardrobe"
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              onChangeText={setQuery}
+              placeholder="Search name, tags, or details"
+              placeholderTextColor={colors.inkMuted}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={query}
+            />
+            {query ? (
+              <Pressable accessibilityLabel="Clear wardrobe search" hitSlop={10} onPress={() => setQuery('')}>
+                <Ionicons color={colors.inkMuted} name="close-circle" size={20} />
+              </Pressable>
+            ) : null}
+          </View>
+          <AppText variant="caption" style={styles.resultCount}>{query.trim() ? `${filteredGarments.length} of ${garmentCount} pieces` : `${garmentCount} pieces`}</AppText>
+          <FlashList
+            contentContainerStyle={styles.gridContent}
+            data={filteredGarments}
+            key={`wardrobe-grid-${gridColumns}`}
+            keyExtractor={(garment) => garment.id}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={(
+              <View style={styles.gridEmpty}>
+                <Ionicons color={colors.clay} name="search-outline" size={28} />
+                <AppText variant="heading">No matching pieces</AppText>
+                <AppText style={styles.gridEmptyText}>Try a color, garment name, pattern, brand, or another saved tag.</AppText>
+              </View>
+            )}
+            numColumns={gridColumns}
+            renderItem={({ item }) => (
+              <View style={styles.gridItem}>
+                <GarmentTile garment={item} grid onPress={() => router.push({ pathname: '/garment/[id]', params: { id: item.id } })} />
+              </View>
+            )}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
+  viewSwitch: { backgroundColor: colors.surfaceMuted, borderRadius: radius.pill, flexDirection: 'row', marginBottom: spacing.md, marginHorizontal: spacing.lg, padding: 4 },
+  viewOption: { alignItems: 'center', borderRadius: radius.pill, flex: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 40 },
+  viewOptionSelected: { backgroundColor: colors.moss },
+  viewOptionText: { color: colors.inkMuted },
+  viewOptionTextSelected: { color: colors.surface },
   content: { paddingBottom: spacing.xl },
   flex: { flex: 1 },
   intro: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginHorizontal: spacing.lg, padding: spacing.md },
@@ -148,4 +224,12 @@ const styles = StyleSheet.create({
   railContainer: { height: 234 },
   addCard: { alignItems: 'center', borderColor: colors.line, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1.5, gap: spacing.xs, height: 234, justifyContent: 'center', width: 112 },
   createSection: { marginHorizontal: spacing.lg },
+  gridView: { flex: 1 },
+  searchBox: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, minHeight: 46, paddingHorizontal: spacing.md },
+  searchInput: { color: colors.ink, flex: 1, fontSize: 16, minHeight: 44 },
+  resultCount: { color: colors.inkMuted, marginHorizontal: spacing.lg, paddingBottom: spacing.xs, paddingTop: spacing.sm },
+  gridContent: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md },
+  gridItem: { flex: 1, padding: spacing.xs },
+  gridEmpty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingTop: 64 },
+  gridEmptyText: { color: colors.inkMuted, textAlign: 'center' },
 });

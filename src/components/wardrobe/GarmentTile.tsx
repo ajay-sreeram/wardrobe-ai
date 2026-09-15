@@ -15,7 +15,7 @@ function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
   return 'shirt-outline';
 }
 
-export function GarmentTile({ garment, compact = false, active = false, organizing = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; active?: boolean; organizing?: boolean; onPress?: () => void; onLongPress?: () => void }) {
+export function GarmentTile({ garment, compact = false, grid = false, active = false, organizing = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; grid?: boolean; active?: boolean; organizing?: boolean; onPress?: () => void; onLongPress?: () => void }) {
   const swatch = swatches[garment.name.length % swatches.length];
   return (
     <Pressable
@@ -25,8 +25,8 @@ export function GarmentTile({ garment, compact = false, active = false, organizi
       delayLongPress={350}
       onLongPress={onLongPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, compact && styles.compactCard, organizing && styles.organizing, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
-      <View style={[styles.image, compact && styles.compactImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
+      style={({ pressed }) => [styles.card, compact && styles.compactCard, grid && styles.gridCard, organizing && styles.organizing, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
+      <View style={[styles.image, compact && styles.compactImage, grid && styles.gridImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
         {garment.canonicalImage ? (
           <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
         ) : (
@@ -42,7 +42,7 @@ export function GarmentTile({ garment, compact = false, active = false, organizi
         ) : null}
       </View>
       {!compact ? (
-        <View style={styles.copy}>
+        <View style={[styles.copy, grid && styles.gridCopy]}>
           <AppText numberOfLines={2} variant="label">{garment.name}</AppText>
           <AppText variant="caption" style={styles.meta}>
             {garment.lastWornAt ? `Worn ${garment.wearCount}×` : 'Not worn yet'}
@@ -56,11 +56,14 @@ export function GarmentTile({ garment, compact = false, active = false, organizi
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', width: 148 },
   compactCard: { borderRadius: radius.sm, width: 58 },
+  gridCard: { borderRadius: radius.sm, width: '100%' },
   image: { alignItems: 'center', height: 158, justifyContent: 'center', overflow: 'hidden' },
   compactImage: { height: 58 },
+  gridImage: { height: 118 },
   canonicalImage: { height: '100%', width: '100%' },
   halo: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 80, height: 112, position: 'absolute', width: 112 },
   copy: { gap: 4, minHeight: 76, padding: spacing.sm },
+  gridCopy: { minHeight: 68, padding: spacing.xs },
   meta: { color: colors.inkMuted },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   active: { opacity: 0.92 },

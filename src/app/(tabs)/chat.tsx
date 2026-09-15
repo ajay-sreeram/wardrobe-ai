@@ -92,19 +92,44 @@ export default function ChatScreen() {
           return;
         }
 
-        addMessages(analysis.garments.map((garment, index) => ({
-          id: `garment-preview-${Date.now()}-${index}`,
-          kind: 'confirmation' as const,
-          title: analysis.garments.length === 1 ? 'I found one garment' : `Garment ${index + 1} of ${analysis.garments.length}`,
-          description: garment.description,
-          garmentName: garment.name,
-          canonicalImageUri: garment.canonicalImageUri,
-          userMessage: submittedText,
-          memoryFacts: analysis.memoryFacts,
-          suggestedSectionId: garment.suggestedSectionId,
-          suggestedSectionName: garment.suggestedSectionName,
-          tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
-        })));
+        addMessages(analysis.garments.map((garment, index) => {
+          const id = `garment-preview-${Date.now()}-${index}`;
+          if ('duplicateCandidate' in garment) {
+            return {
+              id,
+              kind: 'duplicate' as const,
+              garmentName: garment.name,
+              category: garment.category,
+              description: garment.description,
+              colors: garment.colors,
+              tags: garment.tags,
+              sourceImageUri: garment.sourceImage.uri,
+              sourceImageMimeType: garment.sourceImage.mimeType,
+              existingGarmentId: garment.duplicateCandidate.id,
+              existingGarmentName: garment.duplicateCandidate.name,
+              existingImageUri: garment.duplicateCandidate.canonicalImage,
+              matchReason: garment.duplicateReason,
+              matchConfidence: garment.duplicateConfidence,
+              userMessage: submittedText,
+              memoryFacts: analysis.memoryFacts,
+              suggestedSectionId: garment.suggestedSectionId,
+              suggestedSectionName: garment.suggestedSectionName,
+            };
+          }
+          return {
+            id,
+            kind: 'confirmation' as const,
+            title: analysis.garments.length === 1 ? 'I found one garment' : `Garment ${index + 1} of ${analysis.garments.length}`,
+            description: garment.description,
+            garmentName: garment.name,
+            canonicalImageUri: garment.canonicalImageUri,
+            userMessage: submittedText,
+            memoryFacts: analysis.memoryFacts,
+            suggestedSectionId: garment.suggestedSectionId,
+            suggestedSectionName: garment.suggestedSectionName,
+            tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
+          };
+        }));
         if (analysis.note) addAssistantMessage(analysis.note);
         return;
       }

@@ -51,6 +51,18 @@ export function rememberConversation(userMessage: string, assistantMessage: stri
   return serializeWrite(() => appendRecentNow(`User: “${userMessage}” Assistant: “${assistantMessage}”`));
 }
 
+export function rememberExistingGarmentReference({ garmentId, garmentName, userMessage, memoryFacts }: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {
+  return serializeWrite(async () => {
+    const existing = await readMemoryFile('USER.md');
+    const newFacts = memoryFacts.map(clean)
+      .filter((fact) => fact && !existing.toLocaleLowerCase().includes(fact.toLocaleLowerCase()));
+    const garmentLine = existing.includes(`id: ${garmentId}`) ? '' : `- ${garmentName} (id: ${garmentId})\n`;
+    const factLines = newFacts.map((fact) => `- ${fact} [garment: ${garmentName}]`).join('\n');
+    writeMemoryFile('USER.md', `${existing.trimEnd()}\n${garmentLine}${factLines}${factLines ? '\n' : ''}`);
+    await appendRecentNow(`Matched the latest observation to existing garment ${garmentName}. User said: “${userMessage}”`);
+  });
+}
+
 export async function readMemoryContext() {
   await pendingWrite;
   const [user, recent] = await Promise.all([readMemoryFile('USER.md'), readMemoryFile('RECENT.md')]);

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ConfirmationCard } from '@/components/chat/ConfirmationCard';
+import { DuplicateCandidateCard } from '@/components/chat/DuplicateCandidateCard';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { AppText } from '@/components/ui/AppText';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
@@ -11,6 +12,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 export function ChatMessage({ message }: { message: ChatMessageModel }) {
   if (message.kind === 'status') return <AgentProgress text={message.text} />;
   if (message.kind === 'confirmation') return <ConfirmationCard {...message} />;
+  if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
   if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'error') {
     return (

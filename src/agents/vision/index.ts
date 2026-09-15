@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { providerConfig } from '@/config/providers';
 import { readChatImageBase64 } from '@/storage/chatImageData';
+import type { DuplicateCandidate } from '@/agents/wardrobe';
 
 export const visionAgentScope = {
   canAnalyzeImages: true,
@@ -25,6 +26,12 @@ export type GarmentObservation = z.infer<typeof garmentObservationSchema>;
 const analysisSchema = z.object({
   garments: z.array(garmentObservationSchema).max(12),
   note: z.string(),
+});
+
+const duplicateResultSchema = z.object({
+  candidateId: z.string(),
+  confidence: z.number().min(0).max(1),
+  reason: z.string().min(1),
 });
 
 const interactionSchema = z.object({
@@ -222,6 +229,55 @@ Output one complete, uncropped garment against a perfectly flat, single-color ${
     if (error instanceof VisionRequestError) throw error;
     if (error instanceof Error && error.name === 'AbortError') throw new VisionRequestError('Gemini took too long to generate the wardrobe image. Please try again.');
     throw new VisionRequestError('Could not generate the wardrobe image. Check your connection and try again.');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function compareGarmentAgainstCandidates(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation, candidates: DuplicateCandidate[]) {
+  if (!candidates.length) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    const candidateInputs = await Promise.all(candidates.map(async (candidate) => [
+      { type: 'text', text: `Candidate ID: ${candidate.id}\nName: ${candidate.name}\nDescription: ${candidate.description ?? ''}\nTags: ${candidate.tags.join(', ')}` },
+      { type: 'image', data: await readChatImageBase64(candidate.canonicalImage), mime_type: 'image/png' },
+    ]));
+    const response = await fetch(`${providerConfig.gemini.baseUrl}/interactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        model: providerConfig.gemini.model,
+        store: false,
+        input: [
+          {
+            type: 'text',
+            text: `Determine whether the newly observed ${garment.name} is the exact same physical garment as one candidate below. Account for mirror selfies, folds, pose, lighting, camera angle, partial visibility, and the candidate's standardized cutout. Similar color or style alone is NOT a duplicate. Be conservative. If none is the same item, use an empty candidateId. Return only JSON: {"candidateId":"exact candidate ID or empty string","confidence":0.0,"reason":"brief visible evidence"}.`,
+          },
+          { type: 'text', text: 'New observation:' },
+          { type: 'image', data: await readChatImageBase64(sourceImage.uri), mime_type: inferMimeType(sourceImage) },
+          ...candidateInputs.flat(),
+        ],
+        generation_config: { max_output_tokens: 1024, thinking_level: 'minimal' },
+        response_format: { type: 'text' },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+    const interaction = interactionSchema.safeParse(await response.json());
+    if (!interaction.success) return null;
+    const text = interaction.data.steps.flatMap((step) => step.type === 'model_output' ? step.content ?? [] : [])
+      .find((content) => content.type === 'text' && content.text)?.text;
+    if (!text) return null;
+    const result = duplicateResultSchema.safeParse(parseJsonObject(text));
+    if (!result.success || !result.data.candidateId) return null;
+    const candidate = candidates.find((item) => item.id === result.data.candidateId);
+    if (!candidate) return null;
+    return { candidate, confidence: result.data.confidence, reason: result.data.reason };
+  } catch {
+    return null;
   } finally {
     clearTimeout(timeout);
   }

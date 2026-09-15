@@ -1,7 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { getWardrobeSectionOptions, insertGarment } from '@/database/repository';
+import { getActiveGarments, getWardrobeSectionOptions, insertGarment } from '@/database/repository';
+import type { GarmentObservation } from '@/agents/vision';
+import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
 
 export const wardrobeAgentScope = {
@@ -27,4 +29,26 @@ export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<
 
 export async function listWardrobeSections(db: SQLiteDatabase) {
   return getWardrobeSectionOptions(db);
+}
+
+export type DuplicateCandidate = Garment & { canonicalImage: string };
+
+function tokens(values: string[]) {
+  return new Set(values.join(' ').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+}
+
+export async function findPotentialDuplicateCandidates(db: SQLiteDatabase, observation: GarmentObservation): Promise<DuplicateCandidate[]> {
+  const target = tokens([observation.name, observation.category, ...observation.colors, ...observation.tags]);
+  const garments = await getActiveGarments(db);
+  return garments
+    .filter((garment): garment is DuplicateCandidate => Boolean(garment.canonicalImage))
+    .map((garment) => {
+      const candidate = tokens([garment.name, garment.description ?? '', ...garment.tags]);
+      const overlap = [...target].filter((token) => candidate.has(token)).length;
+      return { garment, overlap };
+    })
+    .filter(({ overlap }) => overlap > 0)
+    .sort((left, right) => right.overlap - left.overlap)
+    .slice(0, 2)
+    .map(({ garment }) => garment);
 }

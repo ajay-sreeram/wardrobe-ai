@@ -52,6 +52,11 @@ export async function getWardrobeSections(db: SQLiteDatabase): Promise<WardrobeS
   }));
 }
 
+export async function getActiveGarments(db: SQLiteDatabase): Promise<Garment[]> {
+  const rows = await db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NULL ORDER BY updated_at DESC');
+  return rows.map(mapGarment);
+}
+
 export async function getWardrobeSectionOptions(db: SQLiteDatabase): Promise<WardrobeSectionOption[]> {
   return db.getAllAsync<WardrobeSectionOption>('SELECT id, name FROM sections ORDER BY position');
 }

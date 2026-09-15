@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberGarmentAddition } from '@/agents/memory';
+import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition } from '@/agents/memory';
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
-import { analyzeGarmentImages, generateCanonicalGarmentImage } from '@/agents/vision';
+import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestMuseReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, listWardrobeSections } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, findPotentialDuplicateCandidates, listWardrobeSections } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -12,7 +12,13 @@ export function createSpecialistRequest(input: SpecialistRequest) {
   return specialistRequestSchema.parse(input);
 }
 
-type SelectedImage = { uri: string; mimeType: string | null };
+export type SelectedImage = { uri: string; mimeType: string | null };
+
+export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
+  const generatedJpeg = await generateCanonicalGarmentImage(geminiApiKey, sourceImage, garment);
+  const transparentPng = removeFlatBackgroundToPng(generatedJpeg);
+  return saveGeneratedGarmentPreview(transparentPng, `preview-${Date.now()}`);
+}
 
 export async function coordinateImageObservation({
   museApiKey,
@@ -45,14 +51,29 @@ export async function coordinateImageObservation({
 
   const garments = [];
   for (const [index, garment] of analysis.garments.entries()) {
-    onProgress?.(`Generating wardrobe image ${index + 1} of ${analysis.garments.length}…`);
     const sourceImage = images[Math.min(garment.sourceImageIndex, images.length - 1)];
-    const generatedJpeg = await generateCanonicalGarmentImage(geminiApiKey, sourceImage, garment);
-    const transparentPng = removeFlatBackgroundToPng(generatedJpeg);
     const suggestedSection = sections.find((section) => section.name.toLocaleLowerCase() === garment.suggestedSectionName.toLocaleLowerCase()) ?? sections[0];
+    onProgress?.('Checking wardrobe…');
+    const candidates = await findPotentialDuplicateCandidates(db, garment);
+    const duplicate = await compareGarmentAgainstCandidates(geminiApiKey, sourceImage, garment, candidates);
+
+    if (duplicate && duplicate.confidence >= 0.82) {
+      garments.push({
+        ...garment,
+        sourceImage,
+        duplicateCandidate: duplicate.candidate,
+        duplicateConfidence: duplicate.confidence,
+        duplicateReason: duplicate.reason,
+        suggestedSectionId: suggestedSection.id,
+        suggestedSectionName: suggestedSection.name,
+      });
+      continue;
+    }
+
+    onProgress?.(`Generating wardrobe image ${index + 1} of ${analysis.garments.length}…`);
     garments.push({
       ...garment,
-      canonicalImageUri: saveGeneratedGarmentPreview(transparentPng, `preview-${Date.now()}-${index}`),
+      canonicalImageUri: await coordinateGarmentImageGeneration(geminiApiKey, sourceImage, garment),
       suggestedSectionId: suggestedSection.id,
       suggestedSectionName: suggestedSection.name,
     });
@@ -98,4 +119,8 @@ export async function coordinateGarmentAddition({
   });
   await rememberGarmentAddition({ garmentId, garmentName, sectionName, userMessage, memoryFacts }).catch(() => undefined);
   return garmentId;
+}
+
+export async function coordinateExistingGarmentReference(input: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {
+  await rememberExistingGarmentReference(input).catch(() => undefined);
 }

@@ -143,6 +143,14 @@ export default function ChatScreen() {
       addMessages([
         { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
         ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),
+        ...(reply.wearProposal ? [{
+          id: `wear-confirmation-${Date.now()}`,
+          kind: 'wear_confirmation' as const,
+          garments: reply.wearProposal.garments,
+          garmentIds: reply.wearProposal.garmentIds,
+          wornAt: reply.wearProposal.wornAt,
+          note: reply.wearProposal.note,
+        }] : []),
       ]);
     } catch (error) {
       addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');

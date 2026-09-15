@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition } from '@/agents/memory';
+import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition, rememberWear } from '@/agents/memory';
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -122,7 +122,9 @@ export async function coordinateImageObservation({
 
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string) {
   const [memory, wardrobe] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe);
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, localDate);
   await rememberConversation(userMessage, reply.answer).catch(() => undefined);
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
   return {
@@ -131,6 +133,13 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
       const garment = byId.get(id);
       return garment ? [garment] : [];
     }),
+    wearProposal: reply.proposedWear ? {
+      ...reply.proposedWear,
+      garments: reply.proposedWear.garmentIds.flatMap((id) => {
+        const garment = byId.get(id);
+        return garment ? [garment] : [];
+      }),
+    } : null,
   };
 }
 
@@ -196,4 +205,10 @@ export async function coordinateSectionRename(db: SQLiteDatabase, sectionId: str
 
 export async function coordinateSectionMove(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
   return moveSection(db, sectionId, direction);
+}
+
+export async function coordinateWearRecord(db: SQLiteDatabase, input: { garmentIds: string[]; garmentNames: string[]; wornAt: string; note: string }) {
+  const wearId = await recordWardrobeWear(db, input);
+  await rememberWear(input.garmentNames, input.wornAt, input.note).catch(() => undefined);
+  return wearId;
 }

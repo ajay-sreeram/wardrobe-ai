@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -30,6 +30,11 @@ const sectionNameSchema = z.string().trim().min(1).max(50);
 const reorderGarmentsSchema = z.object({
   sectionId: z.string().min(1),
   garmentIds: z.array(z.string().min(1)).max(500),
+});
+const recordWearSchema = z.object({
+  garmentIds: z.array(z.string().min(1)).min(1).max(12),
+  wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  note: z.string().trim().max(160),
 });
 
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
@@ -101,6 +106,21 @@ export async function renameSection(db: SQLiteDatabase, sectionId: string, name:
 
 export async function moveSection(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
   return moveWardrobeSection(db, sectionId, direction);
+}
+
+export async function recordWardrobeWear(db: SQLiteDatabase, input: z.input<typeof recordWearSchema>) {
+  const wear = recordWearSchema.parse(input);
+  const garmentIds = [...new Set(wear.garmentIds)];
+  if (garmentIds.length !== wear.garmentIds.length) throw new Error('A garment was included more than once.');
+  const placeholders = garmentIds.map(() => '?').join(', ');
+  const rows = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM garments WHERE archived_at IS NULL AND id IN (${placeholders})`,
+    ...garmentIds,
+  );
+  if (rows.length !== garmentIds.length) throw new Error('One or more garments are no longer in your active wardrobe.');
+  const id = `wear-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await insertWearRecord(db, { id, garmentIds, wornAt: wear.wornAt, note: wear.note || null });
+  return id;
 }
 
 export type WardrobeCatalogItem = {

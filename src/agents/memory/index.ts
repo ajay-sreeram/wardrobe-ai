@@ -51,6 +51,10 @@ export function rememberConversation(userMessage: string, assistantMessage: stri
   return serializeWrite(() => appendRecentNow(`User: “${userMessage}” Assistant: “${assistantMessage}”`));
 }
 
+export function rememberWear(garmentNames: string[], wornAt: string, note: string) {
+  return serializeWrite(() => appendRecentNow(`Logged ${garmentNames.join(' + ')} for ${wornAt}${note ? ` (${clean(note, 160)})` : ''}.`));
+}
+
 export function rememberExistingGarmentReference({ garmentId, garmentName, userMessage, memoryFacts }: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {
   return serializeWrite(async () => {
     const existing = await readMemoryFile('USER.md');

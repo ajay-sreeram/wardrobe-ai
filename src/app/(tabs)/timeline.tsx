@@ -2,11 +2,12 @@ import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WearCard } from '@/components/timeline/WearCard';
-import { Chip } from '@/components/ui/Chip';
+import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getWearTimeline } from '@/database/repository';
 import type { WearEntry } from '@/models/wardrobe';
@@ -15,7 +16,6 @@ import { colors, spacing } from '@/theme/tokens';
 export default function TimelineScreen() {
   const db = useSQLiteContext();
   const [entries, setEntries] = useState<WearEntry[]>([]);
-  const [view, setView] = useState<'Diary' | 'Calendar'>('Diary');
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -26,14 +26,17 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScreenHeader eyebrow="Your clothing diary" title="Timeline" />
-      <View style={styles.filters}>
-        <Chip label="Diary" onPress={() => setView('Diary')} selected={view === 'Diary'} />
-        <Chip label="Calendar" onPress={() => setView('Calendar')} selected={view === 'Calendar'} />
-      </View>
       <FlashList
         contentContainerStyle={styles.content}
         data={entries}
         keyExtractor={(item) => item.id}
+        ListEmptyComponent={(
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}><Ionicons color={colors.clay} name="calendar-outline" size={28} /></View>
+            <AppText variant="heading">Your clothing diary starts here</AppText>
+            <AppText style={styles.emptyText}>Tell the wardrobe assistant what you wore, then confirm the entry in Chat.</AppText>
+          </View>
+        )}
         renderItem={({ item, index }) => <WearCard entry={item} showLine={index < entries.length - 1} />}
       />
     </SafeAreaView>
@@ -42,6 +45,8 @@ export default function TimelineScreen() {
 
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
-  filters: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.lg, paddingHorizontal: spacing.lg },
   content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
+  empty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: 72 },
+  emptyIcon: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: 30, height: 60, justifyContent: 'center', width: 60 },
+  emptyText: { color: colors.inkMuted, textAlign: 'center' },
 });

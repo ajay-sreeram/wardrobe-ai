@@ -24,6 +24,7 @@ The app currently includes:
 - garment details and editing for names, tags, and sections, with confirmed recoverable archiving
 - persistent garment and section ordering, plus section creation and renaming
 - tap-to-open garment cards with long-press horizontal drag reordering
+- confirmation-first conversational wear logging into the local Timeline diary
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
@@ -38,6 +39,8 @@ For text conversations, the Wardrobe Agent supplies Muse with the current active
 Tap a garment in Wardrobe to view its canonical image and details, rename it, edit its tags, move it between sections, or archive it after confirmation. “Add piece” opens Chat with the selected section already in the draft so the normal photo-analysis and confirmation flow remains the single ingestion path.
 
 Swipe a garment rail to browse it normally. Tap a card to open its details, or long press and drag it horizontally to rearrange its section. Long press also enters a visible organizing state with highlighted cards, drag handles, contextual guidance, and a Done button. Move earlier/later remains available in the detail screen as an accessible fallback. A section's overflow button opens section management for renaming and reliable move controls, and the Wardrobe screen can create new sections. Positions are stored in SQLite and retained across launches.
+
+When a text message clearly says that owned garments were worn, Muse proposes exact catalog IDs and a date instead of changing history directly. Chat renders a review card, and only “Log outfit” delegates the mutation to the Wardrobe Agent. Confirmed entries update the local diary, wear counts, last-worn dates, and recent agent memory. Suggestions, future plans, and ambiguous garment matches never create a wear proposal.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

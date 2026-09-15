@@ -210,6 +210,32 @@ export async function archiveGarment(db: SQLiteDatabase, garmentId: string) {
   if (!result.changes) throw new Error('Garment not found.');
 }
 
+export async function insertWearRecord(db: SQLiteDatabase, input: { id: string; garmentIds: string[]; wornAt: string; note: string | null }) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'INSERT INTO wears (id, garment_ids, worn_at, note) VALUES (?, ?, ?, ?)',
+      input.id,
+      JSON.stringify(input.garmentIds),
+      input.wornAt,
+      input.note,
+    );
+    for (const garmentId of input.garmentIds) {
+      const result = await db.runAsync(
+        `UPDATE garments
+         SET wear_count = wear_count + 1,
+             last_worn_at = CASE WHEN last_worn_at IS NULL OR last_worn_at < ? THEN ? ELSE last_worn_at END,
+             updated_at = ?
+         WHERE id = ? AND archived_at IS NULL`,
+        input.wornAt,
+        input.wornAt,
+        new Date().toISOString(),
+        garmentId,
+      );
+      if (!result.changes) throw new Error('A garment is no longer in your active wardrobe.');
+    }
+  });
+}
+
 export async function getWearTimeline(db: SQLiteDatabase): Promise<WearEntry[]> {
   const [wearRows, garmentRows] = await Promise.all([
     db.getAllAsync<{ id: string; garment_ids: string; worn_at: string; note: string | null }>('SELECT * FROM wears ORDER BY worn_at DESC'),

@@ -6,6 +6,7 @@ import { ConfirmationCard } from '@/components/chat/ConfirmationCard';
 import { DuplicateCandidateCard } from '@/components/chat/DuplicateCandidateCard';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { WardrobeResultsCard } from '@/components/chat/WardrobeResultsCard';
+import { WearConfirmationCard } from '@/components/chat/WearConfirmationCard';
 import { AppText } from '@/components/ui/AppText';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -16,6 +17,17 @@ export function ChatMessage({ message }: { message: ChatMessageModel }) {
   if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
   if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'wardrobe_results') return <WardrobeResultsCard garments={message.garments} />;
+  if (message.kind === 'wear_confirmation') return <WearConfirmationCard message={message} />;
+  if (message.kind === 'wear_status') {
+    return (
+      <View style={styles.statusNote}>
+        <Ionicons color={message.logged ? colors.moss : colors.inkMuted} name={message.logged ? 'checkmark-circle' : 'close-circle-outline'} size={20} />
+        <AppText variant="caption" style={styles.statusText}>
+          {message.logged ? `${message.garmentNames.join(' + ')} added to your Timeline.` : 'Wear entry not added.'}
+        </AppText>
+      </View>
+    );
+  }
   if (message.kind === 'error') {
     return (
       <View style={styles.error}>
@@ -41,4 +53,6 @@ const styles = StyleSheet.create({
   imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
   error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#F6E3DF', borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   errorText: { color: colors.danger, flex: 1 },
+  statusNote: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.mossSoft, borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
+  statusText: { color: colors.inkMuted, flex: 1 },
 });

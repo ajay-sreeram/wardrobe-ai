@@ -22,6 +22,7 @@ const addGarmentRequestSchema = z.object({
 const updateGarmentRequestSchema = z.object({
   garmentId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500),
   sectionId: z.string().min(1),
   tags: z.array(z.string().trim().min(1).max(40)).max(12),
 });
@@ -151,6 +152,7 @@ export async function deleteWardrobeWear(db: SQLiteDatabase, wearId: string) {
 export type WardrobeCatalogItem = {
   id: string;
   name: string;
+  sectionId: string;
   sectionName: string;
   description: string | null;
   tags: string[];
@@ -160,6 +162,7 @@ export type WardrobeCatalogItem = {
 };
 
 export type WardrobeWearHistoryItem = {
+  id: string;
   wornAt: string;
   context: string | null;
   garments: { id: string; name: string }[];
@@ -170,6 +173,7 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
   return sections.flatMap((section) => section.garments.map((garment) => ({
     id: garment.id,
     name: garment.name,
+    sectionId: section.id,
     sectionName: section.name,
     description: garment.description,
     tags: garment.tags,
@@ -182,6 +186,7 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
 export async function readWardrobeWearHistory(db: SQLiteDatabase, limit = 40): Promise<WardrobeWearHistoryItem[]> {
   const timeline = await getWearTimeline(db);
   return timeline.slice(0, limit).map((entry) => ({
+    id: entry.id,
     wornAt: entry.wornAt,
     context: entry.note,
     garments: entry.garments.map((garment) => ({ id: garment.id, name: garment.name })),

@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { providerConfig } from '@/config/providers';
 import type { WardrobeCatalogItem, WardrobeWearHistoryItem } from '@/agents/wardrobe';
+import type { WardrobeSectionOption } from '@/database/repository';
+import type { WardrobeMutation } from '@/models/agent';
 
 const museResponseSchema = z.object({
   choices: z.array(z.object({
@@ -37,6 +39,15 @@ const garmentPresentationSchema = z.object({
   note: z.string(),
 });
 
+const wardrobeMutationSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('update_garment'), garmentId: z.string().min(1), name: z.string().trim().min(1).max(80), description: z.string().trim().max(500), sectionId: z.string().min(1), tags: z.array(z.string().trim().min(1).max(40)).max(12) }),
+  z.object({ type: z.literal('archive_garment'), garmentId: z.string().min(1) }),
+  z.object({ type: z.literal('create_section'), name: z.string().trim().min(1).max(50) }),
+  z.object({ type: z.literal('rename_section'), sectionId: z.string().min(1), name: z.string().trim().min(1).max(50) }),
+  z.object({ type: z.literal('update_wear'), wearId: z.string().min(1), garmentIds: z.array(z.string().min(1)).min(1).max(12), wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), note: z.string().trim().max(160) }),
+  z.object({ type: z.literal('delete_wear'), wearId: z.string().min(1) }),
+]);
+
 const wardrobeConversationSchema = z.object({
   answer: z.string().min(1),
   garmentIds: z.array(z.string()).max(12),
@@ -46,6 +57,7 @@ const wardrobeConversationSchema = z.object({
     wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     note: z.string().max(160),
   }).nullable(),
+  proposedAction: wardrobeMutationSchema.nullable(),
 });
 
 export type ImageObservationPlan = z.infer<typeof imagePlanSchema>;
@@ -134,6 +146,7 @@ export async function requestWardrobeAwareReply(
   userMessage: string,
   memoryContext: string,
   wardrobe: WardrobeCatalogItem[],
+  sections: WardrobeSectionOption[],
   wearHistory: WardrobeWearHistoryItem[],
   localDate: string,
   conversationContext = '',
@@ -159,6 +172,9 @@ ${memoryContext}
 <wardrobe_catalog>
 ${JSON.stringify(wardrobe.map(({ canonicalImage: _canonicalImage, ...item }) => item))}
 </wardrobe_catalog>
+<wardrobe_sections>
+${JSON.stringify(sections)}
+</wardrobe_sections>
 <wear_history>
 ${JSON.stringify(wearHistory)}
 </wear_history>
@@ -185,33 +201,69 @@ were paired. Do not infer a reason. Do not propose a wear for outfit suggestions
 garments absent from the catalog. When proposedWear is present, ask for confirmation and leave garmentIds empty.
 Put only explicitly stated durable preferences, personal rules, and wardrobe terminology in memoryFacts. Do not turn
 a one-off outfit or event into a preference.
+You may propose exactly one local mutation through proposedAction when the person explicitly asks for it and every
+target is unambiguous in the supplied reference data. Never claim it already happened; explain it naturally and ask
+for confirmation. Use exact IDs only. Available actions:
+- update_garment: rename, change description, move section, or edit tags. Return the COMPLETE resulting name,
+  description, sectionId, and tags, copying unchanged values from the catalog. For requests to add/remove tags, return
+  the full final tag list.
+- archive_garment: use for remove/delete garment requests; archiving is recoverable and preserves wear history.
+- create_section and rename_section: use exact existing sectionId when renaming.
+- update_wear: correct an existing Timeline row. Return its COMPLETE resulting garmentIds, wornAt, and note, copying
+  unchanged values from wear_history.
+- delete_wear: remove an incorrect Timeline row.
+If a target, requested value, or Timeline row is ambiguous or absent from the provided data, ask a concise clarifying
+question and return null. A new garment requires a photo through Chat, so do not propose an action for text-only adds.
+Never return proposedAction together with proposedWear. Suggestions and questions never create an action.
+proposedAction must be null or exactly one of these JSON shapes:
+{"type":"update_garment","garmentId":"exact-id","name":"full resulting name","description":"full resulting description","sectionId":"exact-id","tags":["full","resulting","tags"]}
+{"type":"archive_garment","garmentId":"exact-id"}
+{"type":"create_section","name":"new section name"}
+{"type":"rename_section","sectionId":"exact-id","name":"new section name"}
+{"type":"update_wear","wearId":"exact-id","garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"full resulting note"}
+{"type":"delete_wear","wearId":"exact-id"}
 Return JSON only in this exact shape:
-{"answer":"natural direct response","garmentIds":["exact-id"],"memoryFacts":["explicit durable fact"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"}}.
+{"answer":"natural direct response","garmentIds":["exact-id"],"memoryFacts":["explicit durable fact"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
 Use null for proposedWear when no wear record should be proposed.
+Use null for proposedAction when no local mutation should be proposed.
 `,
       },
       { role: 'user', content: userMessage },
     ], 1024);
     const parsed = wardrobeConversationSchema.parse(parseJsonObject(response));
     const knownIds = new Set(wardrobe.map((garment) => garment.id));
+    const knownSectionIds = new Set(sections.map((section) => section.id));
+    const knownWearIds = new Set(wearHistory.map((wear) => wear.id));
     const proposedIds = parsed.proposedWear ? [...new Set(parsed.proposedWear.garmentIds)] : [];
     const proposedWear = parsed.proposedWear && proposedIds.length === parsed.proposedWear.garmentIds.length
       && proposedIds.every((id) => knownIds.has(id))
       ? { ...parsed.proposedWear, garmentIds: proposedIds }
       : null;
+    const action = parsed.proposedAction as WardrobeMutation | null;
+    const proposedAction = action && validateWardrobeMutation(action, knownIds, knownSectionIds, knownWearIds, sections) ? action : null;
     return {
       answer: parsed.answer,
       garmentIds: [...new Set(parsed.garmentIds)].filter((id) => knownIds.has(id)),
       memoryFacts: parsed.memoryFacts,
       proposedWear,
+      proposedAction: proposedWear ? null : proposedAction,
     };
   } catch {
     const answer = await requestMuseContent(apiKey, [
       { role: 'system', content: `${wardrobeContext}\nAnswer the person's message naturally in plain text.` },
       { role: 'user', content: userMessage },
     ], 1024);
-    return { answer, garmentIds: [], memoryFacts: [], proposedWear: null };
+    return { answer, garmentIds: [], memoryFacts: [], proposedWear: null, proposedAction: null };
   }
+}
+
+function validateWardrobeMutation(action: WardrobeMutation, garmentIds: Set<string>, sectionIds: Set<string>, wearIds: Set<string>, sections: WardrobeSectionOption[]) {
+  if (action.type === 'update_garment') return garmentIds.has(action.garmentId) && sectionIds.has(action.sectionId) && new Set(action.tags).size === action.tags.length;
+  if (action.type === 'archive_garment') return garmentIds.has(action.garmentId);
+  if (action.type === 'create_section') return !sections.some((section) => section.name.toLocaleLowerCase() === action.name.toLocaleLowerCase());
+  if (action.type === 'rename_section') return sectionIds.has(action.sectionId) && !sections.some((section) => section.id !== action.sectionId && section.name.toLocaleLowerCase() === action.name.toLocaleLowerCase());
+  if (action.type === 'update_wear') return wearIds.has(action.wearId) && action.garmentIds.every((id) => garmentIds.has(id)) && new Set(action.garmentIds).size === action.garmentIds.length;
+  return wearIds.has(action.wearId);
 }
 
 export async function requestImageObservationPlan(apiKey: string, userMessage: string, localDate: string): Promise<ImageObservationPlan> {

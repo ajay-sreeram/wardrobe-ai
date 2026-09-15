@@ -52,7 +52,7 @@ export default function GarmentDetailsScreen() {
     setSaving(true);
     setError(null);
     try {
-      await coordinateGarmentUpdate(db, { garmentId: garment.id, name, sectionId, tags: normalizedTags });
+      await coordinateGarmentUpdate(db, { garmentId: garment.id, name, description: garment.description ?? '', sectionId, tags: normalizedTags });
       router.back();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'I could not update this garment.');

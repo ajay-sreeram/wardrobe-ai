@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, View } from 'react-native';
 
 import { AgentProgress } from '@/components/chat/AgentProgress';
+import { ActionConfirmationCard } from '@/components/chat/ActionConfirmationCard';
 import { ConfirmationCard } from '@/components/chat/ConfirmationCard';
 import { DuplicateCandidateCard } from '@/components/chat/DuplicateCandidateCard';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
@@ -18,6 +19,15 @@ export function ChatMessage({ message }: { message: ChatMessageModel }) {
   if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'wardrobe_results') return <WardrobeResultsCard garments={message.garments} />;
   if (message.kind === 'wear_confirmation') return <WearConfirmationCard message={message} />;
+  if (message.kind === 'action_confirmation') return <ActionConfirmationCard message={message} />;
+  if (message.kind === 'action_status') {
+    return (
+      <View style={styles.statusNote}>
+        <Ionicons color={message.applied ? colors.moss : colors.inkMuted} name={message.applied ? 'checkmark-circle' : 'close-circle-outline'} size={20} />
+        <AppText variant="caption" style={styles.statusText}>{message.applied ? `${message.summary}.` : 'Change not applied.'}</AppText>
+      </View>
+    );
+  }
   if (message.kind === 'wear_status') {
     return (
       <View style={styles.statusNote}>

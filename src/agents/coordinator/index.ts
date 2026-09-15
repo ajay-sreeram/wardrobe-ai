@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
-import { specialistRequestSchema, type ChatMessage, type SpecialistRequest } from '@/models/agent';
+import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
+import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -33,6 +33,8 @@ function recentConversationContext(messages: ChatMessage[]) {
     if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
     if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
     if (message.kind === 'wear_status') return [`Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
+    if (message.kind === 'action_confirmation') return [`Pending local change awaiting confirmation: ${message.description}`];
+    if (message.kind === 'action_status') return [`Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
     return [];
   }).join('\n');
 }
@@ -138,13 +140,15 @@ export async function coordinateImageObservation({
 }
 
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
-  const [memory, wardrobe, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), readWardrobeWearHistory(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, wearHistory, localDateString(), recentConversationContext(messages));
+  const [memory, wardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateString(), recentConversationContext(messages));
   await Promise.all([
     rememberConversation(userMessage, reply.answer),
     rememberExplicitWardrobeFacts(reply.memoryFacts),
   ]).catch(() => undefined);
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
+  const sectionById = new Map(sections.map((section) => [section.id, section.name]));
+  const wearById = new Map(wearHistory.map((wear) => [wear.id, wear]));
   return {
     text: reply.answer,
     garments: reply.garmentIds.flatMap((id) => {
@@ -158,7 +162,31 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
         return garment ? [garment] : [];
       }),
     } : null,
+    actionProposal: reply.proposedAction ? describeWardrobeMutation(reply.proposedAction, byId, sectionById, wearById) : null,
   };
+}
+
+function describeWardrobeMutation(
+  action: WardrobeMutation,
+  garments: Map<string, Awaited<ReturnType<typeof readWardrobeCatalog>>[number]>,
+  sections: Map<string, string>,
+  wears: Map<string, Awaited<ReturnType<typeof readWardrobeWearHistory>>[number]>,
+) {
+  if (action.type === 'update_garment') {
+    const garment = garments.get(action.garmentId)!;
+    const destination = sections.get(action.sectionId)!;
+    return { action, title: `Update ${garment.name}?`, description: `Save the name “${action.name}”, move it to ${destination}, and use these tags: ${action.tags.join(', ') || 'none'}. Description: ${action.description || 'None'}`, confirmLabel: 'Update garment', garments: [garment] };
+  }
+  if (action.type === 'archive_garment') {
+    const garment = garments.get(action.garmentId)!;
+    return { action, title: `Archive ${garment.name}?`, description: 'It will leave your active wardrobe, while its Timeline history remains available.', confirmLabel: 'Archive garment', garments: [garment] };
+  }
+  if (action.type === 'create_section') return { action, title: `Create ${action.name}?`, description: 'This will add a new section to your wardrobe.', confirmLabel: 'Create section', garments: [] };
+  if (action.type === 'rename_section') return { action, title: `Rename ${sections.get(action.sectionId)}?`, description: `The section will be renamed to ${action.name}. Its garments will stay in place.`, confirmLabel: 'Rename section', garments: [] };
+  const wear = wears.get(action.wearId)!;
+  const wearGarments = action.type === 'update_wear' ? action.garmentIds.flatMap((id) => garments.get(id) ?? []) : wear.garments.flatMap((item) => garments.get(item.id) ?? []);
+  if (action.type === 'update_wear') return { action, title: `Correct the ${wear.wornAt} outfit?`, description: `Save ${wearGarments.map((garment) => garment.name).join(' + ')} for ${action.wornAt}${action.note ? ` · ${action.note}` : ''}.`, confirmLabel: 'Update Timeline', garments: wearGarments };
+  return { action, title: `Delete the ${wear.wornAt} Timeline entry?`, description: `${wear.garments.map((garment) => garment.name).join(' + ')} will be removed from your wear history and garment statistics will be corrected.`, confirmLabel: 'Delete entry', garments: wearGarments };
 }
 
 export async function coordinateGarmentAddition({
@@ -197,7 +225,7 @@ export async function coordinateExistingGarmentReference(input: { garmentId: str
   await rememberExistingGarmentReference(input).catch(() => undefined);
 }
 
-export async function coordinateGarmentUpdate(db: SQLiteDatabase, input: { garmentId: string; name: string; sectionId: string; tags: string[] }) {
+export async function coordinateGarmentUpdate(db: SQLiteDatabase, input: { garmentId: string; name: string; description: string; sectionId: string; tags: string[] }) {
   return updateWardrobeGarment(db, input);
 }
 
@@ -239,4 +267,41 @@ export async function coordinateWearUpdate(db: SQLiteDatabase, input: { wearId: 
 export async function coordinateWearDelete(db: SQLiteDatabase, wearId: string, wornAt: string) {
   await deleteWardrobeWear(db, wearId);
   await rememberWearDeletion(wornAt).catch(() => undefined);
+}
+
+export async function coordinateWardrobeMutation(db: SQLiteDatabase, action: WardrobeMutation) {
+  if (action.type === 'update_garment') {
+    await updateWardrobeGarment(db, action);
+    await rememberWardrobeChange(`Updated garment ${action.name}.`).catch(() => undefined);
+    return `Updated ${action.name}`;
+  }
+  if (action.type === 'archive_garment') {
+    const garment = await readWardrobeCatalog(db).then((items) => items.find((item) => item.id === action.garmentId));
+    await archiveWardrobeGarment(db, action.garmentId);
+    const summary = `Archived ${garment?.name ?? 'garment'}`;
+    await rememberWardrobeChange(`${summary}.`).catch(() => undefined);
+    return summary;
+  }
+  if (action.type === 'create_section') {
+    await createSection(db, action.name);
+    await rememberWardrobeChange(`Created wardrobe section ${action.name}.`).catch(() => undefined);
+    return `Created ${action.name}`;
+  }
+  if (action.type === 'rename_section') {
+    const oldName = await listWardrobeSections(db).then((items) => items.find((item) => item.id === action.sectionId)?.name);
+    await renameSection(db, action.sectionId, action.name);
+    await rememberWardrobeChange(`Renamed wardrobe section ${oldName ?? ''} to ${action.name}.`).catch(() => undefined);
+    return `Renamed ${oldName ?? 'section'} to ${action.name}`;
+  }
+  if (action.type === 'update_wear') {
+    await updateWardrobeWear(db, action);
+    const corrected = await readWardrobeWear(db, action.wearId);
+    const names = corrected?.garments.map((garment) => garment.name) ?? [];
+    await rememberWearCorrection(names, action.wornAt, action.note).catch(() => undefined);
+    return `Updated the ${action.wornAt} Timeline entry`;
+  }
+  const existing = await readWardrobeWear(db, action.wearId);
+  await deleteWardrobeWear(db, action.wearId);
+  await rememberWearDeletion(existing?.wornAt ?? 'selected date').catch(() => undefined);
+  return `Deleted the ${existing?.wornAt ?? 'selected'} Timeline entry`;
 }

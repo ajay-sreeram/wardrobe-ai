@@ -15,6 +15,7 @@ export type NewGarment = {
 
 export type GarmentUpdate = {
   name: string;
+  description: string;
   sectionId: string;
   tags: string[];
 };
@@ -119,12 +120,14 @@ export async function updateGarment(db: SQLiteDatabase, garmentId: string, updat
   const result = await db.runAsync(
     `UPDATE garments
      SET name = ?,
+         description = ?,
          position = CASE WHEN section_id = ? THEN position ELSE
            (SELECT COALESCE(MAX(position), -1) + 1 FROM garments AS target WHERE target.section_id = ?)
          END,
          section_id = ?, tags = ?, updated_at = ?
      WHERE id = ? AND archived_at IS NULL`,
     update.name,
+    update.description,
     update.sectionId,
     update.sectionId,
     update.sectionId,

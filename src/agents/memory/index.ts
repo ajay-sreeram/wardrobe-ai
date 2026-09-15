@@ -63,6 +63,10 @@ export function rememberWearDeletion(wornAt: string) {
   return serializeWrite(() => appendRecentNow(`Deleted an incorrect Timeline entry for ${wornAt}. SQLite Timeline is canonical.`));
 }
 
+export function rememberWardrobeChange(summary: string) {
+  return serializeWrite(() => appendRecentNow(`${clean(summary)} SQLite wardrobe and Timeline are canonical.`));
+}
+
 export function rememberExplicitWardrobeFacts(facts: string[]) {
   return serializeWrite(async () => {
     if (!facts.length) return;

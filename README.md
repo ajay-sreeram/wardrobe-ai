@@ -9,6 +9,7 @@ The app currently includes:
 - Chat, Wardrobe, and Timeline tabs
 - live text conversation through Muse
 - one-tap natural Chat starters for outfit help, wardrobe rediscovery, exploration, and wear logging
+- Muse-proposed, confirmation-first natural-language mutations for garments, sections, and Timeline corrections
 - an on-device SQLite schema with four empty starter sections
 - on-device Markdown memory initialization
 - a small internal design system

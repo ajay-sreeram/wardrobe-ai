@@ -154,6 +154,11 @@ export default function ChatScreen() {
           wornAt: reply.wearProposal.wornAt,
           note: reply.wearProposal.note,
         }] : []),
+        ...(reply.actionProposal ? [{
+          id: `action-confirmation-${Date.now()}`,
+          kind: 'action_confirmation' as const,
+          ...reply.actionProposal,
+        }] : []),
       ]);
     } catch (error) {
       addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');

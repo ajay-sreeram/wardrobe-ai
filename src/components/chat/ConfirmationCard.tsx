@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { addGarmentToWardrobe } from '@/agents/wardrobe';
+import { coordinateGarmentAddition } from '@/agents/coordinator';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
@@ -12,7 +12,7 @@ import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { getWardrobeSectionOptions, type WardrobeSectionOption } from '@/database/repository';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string }) {
+export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[] }) {
   const db = useSQLiteContext();
   const [choice, setChoice] = useState<string | null>(null);
   const [choosingSection, setChoosingSection] = useState(false);
@@ -30,12 +30,16 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
     setError(null);
     setSavingSectionId(section.id);
     try {
-      await addGarmentToWardrobe(db, {
-        name: garmentName,
+      await coordinateGarmentAddition({
+        db,
+        garmentName,
         sectionId: section.id,
+        sectionName: section.name,
         description,
         tags,
         canonicalImageUri,
+        userMessage,
+        memoryFacts,
       });
       setChoice(`Added to ${section.name}`);
     } catch {

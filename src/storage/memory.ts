@@ -1,2 +1,3 @@
-// TypeScript fallback. Metro resolves memory.native.ts or memory.web.ts per platform.
 export function initializeMemoryFiles() {}
+export async function readMemoryFile(_name: 'USER.md' | 'RECENT.md') { return ''; }
+export function writeMemoryFile(_name: 'USER.md' | 'RECENT.md', _contents: string) {}

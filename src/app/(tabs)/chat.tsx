@@ -6,8 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { coordinateImageObservation } from '@/agents/coordinator';
-import { requestMuseReply } from '@/agents/coordinator/muse';
+import { coordinateImageObservation, coordinateTextConversation } from '@/agents/coordinator';
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { AppText } from '@/components/ui/AppText';
@@ -89,6 +88,8 @@ export default function ChatScreen() {
           description: garment.description,
           garmentName: garment.name,
           canonicalImageUri: garment.canonicalImageUri,
+          userMessage: submittedText,
+          memoryFacts: analysis.memoryFacts,
           tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
         })));
         if (analysis.note) addAssistantMessage(analysis.note);
@@ -100,7 +101,7 @@ export default function ChatScreen() {
         return;
       }
 
-      addAssistantMessage(await requestMuseReply(developmentEnv.museApiKey, submittedText));
+      addAssistantMessage(await coordinateTextConversation(developmentEnv.museApiKey, submittedText));
     } catch (error) {
       addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');
     } finally {

@@ -57,7 +57,7 @@ const outputJsonSchema = {
         properties: {
           name: { type: 'string', description: 'Short neutral wardrobe name.' },
           category: { type: 'string', description: 'General garment category.' },
-          description: { type: 'string', description: 'Visible cut, material, pattern, and distinctive details.' },
+          description: { type: 'string', description: 'One short object-focused sentence about the target garment cut, material, pattern, and distinctive details. Never mention the person, pose, photo, visibility, or background items.' },
           colors: { type: 'array', items: { type: 'string' }, maxItems: 5 },
           tags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
@@ -68,7 +68,7 @@ const outputJsonSchema = {
       },
       maxItems: 12,
     },
-    note: { type: 'string', description: 'A brief caveat when an image is ambiguous; otherwise an empty string.' },
+    note: { type: 'string', description: 'A brief caveat only about an ambiguous target-garment detail; otherwise an empty string. Never summarize people, poses, accessories, or background garments.' },
   },
   required: ['garments', 'note'],
 } as const;
@@ -126,7 +126,7 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
         input: [
           {
             type: 'text',
-            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain.
+            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain. In descriptions and notes, discuss only the target garment itself. Never mention the person, pose, accessories, unrelated garments, background, photo/image, visibility, or the identification process.
 User message: ${context.userMessage || '(no message)'}
 Coordinator intent: ${context.intent}
 ${context.focusGarments.length ? `Strict selection: Return ONLY garments matching these user-requested types: ${context.focusGarments.join(', ')}. Treat every other visible garment as background context and do not include it in garments.` : 'Selection: The user did not identify a specific garment type, so return all clearly visible garments.'}
@@ -253,7 +253,7 @@ export async function compareGarmentAgainstCandidates(apiKey: string, sourceImag
         input: [
           {
             type: 'text',
-            text: `Determine whether the newly observed ${garment.name} is the exact same physical garment as one candidate below. Account for mirror selfies, folds, pose, lighting, camera angle, partial visibility, and the candidate's standardized cutout. Similar color or style alone is NOT a duplicate. Be conservative. If none is the same item, use an empty candidateId. Return only JSON: {"candidateId":"exact candidate ID or empty string","confidence":0.0,"reason":"brief visible evidence"}.`,
+            text: `Determine whether the newly observed ${garment.name} is the exact same physical garment as one candidate below. Account for mirror selfies, folds, pose, lighting, camera angle, partial visibility, and the candidate's standardized cutout. Similar color or style alone is NOT a duplicate. Be conservative. If none is the same item, use an empty candidateId. In the reason, mention only garment-level similarities or differences—never the person, pose, accessories, unrelated garments, photo/image, visibility, or identification process. Return only JSON: {"candidateId":"exact candidate ID or empty string","confidence":0.0,"reason":"brief garment-level evidence"}.`,
           },
           { type: 'text', text: 'New observation:' },
           { type: 'image', data: await readChatImageBase64(sourceImage.uri), mime_type: inferMimeType(sourceImage) },

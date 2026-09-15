@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition } from '@/agents/memory';
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
-import { requestImageObservationPlan, requestMuseReply } from '@/agents/coordinator/muse';
+import { requestImageObservationPlan, requestMuseReply, requestNaturalGarmentPresentation } from '@/agents/coordinator/muse';
 import { addGarmentToWardrobe, findPotentialDuplicateCandidates, listWardrobeSections } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
@@ -13,6 +13,14 @@ export function createSpecialistRequest(input: SpecialistRequest) {
 }
 
 export type SelectedImage = { uri: string; mimeType: string | null };
+
+function fallbackDescription(garmentName: string) {
+  return `I found the ${garmentName.toLocaleLowerCase()} you shared.`;
+}
+
+function fallbackDuplicateReason(existingGarmentName: string) {
+  return `Its color, shape, and details look close to your ${existingGarmentName}.`;
+}
 
 export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
   const generatedJpeg = await generateCanonicalGarmentImage(geminiApiKey, sourceImage, garment);
@@ -79,7 +87,37 @@ export async function coordinateImageObservation({
     });
   }
 
-  return { ...analysis, garments, memoryFacts: plan.memoryFacts };
+  onProgress?.('Putting it together…');
+  const presentation = await requestNaturalGarmentPresentation(museApiKey, {
+    userMessage,
+    rawNote: analysis.note,
+    garments: garments.map((garment, index) => ({
+      index,
+      name: garment.name,
+      rawDescription: garment.description,
+      rawDuplicateReason: 'duplicateReason' in garment ? garment.duplicateReason : undefined,
+    })),
+  });
+
+  const presentedGarments = garments.map((garment, index) => {
+    const copy = presentation?.garments.find((item) => item.index === index);
+    const description = copy?.description || fallbackDescription(garment.name);
+    if ('duplicateReason' in garment) {
+      return {
+        ...garment,
+        description,
+        duplicateReason: copy?.duplicateReason || fallbackDuplicateReason(garment.duplicateCandidate.name),
+      };
+    }
+    return { ...garment, description };
+  });
+
+  return {
+    ...analysis,
+    note: presentation?.note || (analysis.note ? 'A few details were unclear, so please review the suggestion before adding it.' : ''),
+    garments: presentedGarments,
+    memoryFacts: plan.memoryFacts,
+  };
 }
 
 export async function coordinateTextConversation(apiKey: string, userMessage: string) {

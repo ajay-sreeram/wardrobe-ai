@@ -87,10 +87,9 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
   return (
     <Card style={styles.card}>
       <ExpandableImage badge="Existing wardrobe item" style={styles.preview} uri={message.existingImageUri} />
-      <AppText variant="caption" style={styles.eyebrow}>Possible duplicate</AppText>
-      <AppText variant="heading">Is this your {message.existingGarmentName}?</AppText>
+      <AppText variant="caption" style={styles.eyebrow}>Close wardrobe match</AppText>
+      <AppText variant="heading">Could this be your {message.existingGarmentName}?</AppText>
       <AppText style={styles.muted}>{message.matchReason}</AppText>
-      <AppText variant="caption" style={styles.confidence}>{Math.round(message.matchConfidence * 100)}% visual match confidence</AppText>
       <View style={styles.actions}>
         <AppButton disabled={generating} label="Use existing" onPress={useExisting} style={styles.flex} />
         <AppButton label="Add as new" loading={generating} onPress={addAsNew} tone="secondary" style={styles.flex} />
@@ -105,7 +104,6 @@ const styles = StyleSheet.create({
   preview: { backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220 },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   muted: { color: colors.inkMuted },
-  confidence: { color: colors.moss },
   actions: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   error: { color: colors.danger },

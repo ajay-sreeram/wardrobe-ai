@@ -19,12 +19,15 @@ The app currently includes:
 - transparent, consistently scaled 3:4 garment PNG generation for Chat previews and the Wardrobe
 - local Markdown memory for confirmed garment terminology and recent conversations
 - conservative duplicate detection against a small local shortlist of existing canonical garment images
+- Coordinator-written Chat copy, so raw Vision observations and confidence scores remain internal
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
 The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. A selected photo appears as a small, expandable, session-only attachment in Chat. That temporary picker file is sent to Gemini for garment analysis and standardized image generation, but is never copied into app storage. Only Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
 
 Before generating a new canonical image, the Wardrobe Agent shortlists at most two plausible existing garments using local metadata. Vision compares only those candidates and raises a duplicate review only for a conservative high-confidence match. Choosing “Use existing” avoids image generation and database duplication; choosing “Add as new” resumes canonical generation.
+
+Vision stays precise and structured internally, while Muse turns its findings into concise, direct wardrobe-assistant language before Chat renders them. A deterministic friendly fallback prevents specialist wording from leaking into the interface when that presentation pass is unavailable.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

@@ -45,6 +45,7 @@ const garmentPresentationSchema = z.object({
 const wardrobeMutationSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('update_garment'), garmentId: z.string().min(1), name: z.string().trim().min(1).max(80), description: z.string().trim().max(500), sectionId: z.string().min(1), tags: z.array(z.string().trim().min(1).max(40)).max(12) }),
   z.object({ type: z.literal('archive_garment'), garmentId: z.string().min(1) }),
+  z.object({ type: z.literal('restore_garment'), garmentId: z.string().min(1) }),
   z.object({ type: z.literal('create_section'), name: z.string().trim().min(1).max(50) }),
   z.object({ type: z.literal('rename_section'), sectionId: z.string().min(1), name: z.string().trim().min(1).max(50) }),
   z.object({ type: z.literal('update_wear'), wearId: z.string().min(1), garmentIds: z.array(z.string().min(1)).min(1).max(12), wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), note: z.string().trim().max(160) }),
@@ -70,6 +71,11 @@ const wardrobeReadQuerySchema = z.discriminatedUnion('tool', [
     query: z.string().max(120),
     sectionId: z.string().nullable(),
     sort: z.enum(['wardrobe_order', 'least_worn', 'most_worn', 'oldest_worn', 'name']),
+    limit: z.number().int().min(1).max(20),
+  }),
+  z.object({
+    tool: z.literal('search_archived'),
+    query: z.string().max(120),
     limit: z.number().int().min(1).max(20),
   }),
   z.object({
@@ -222,7 +228,7 @@ function safeGarment(item: WardrobeCatalogItem) {
   return safe;
 }
 
-function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalogItem[], wearHistory: WardrobeWearHistoryItem[], memoryContext: string) {
+function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalogItem[], archivedWardrobe: WardrobeCatalogItem[], wearHistory: WardrobeWearHistoryItem[], memoryContext: string) {
   if (query.tool === 'search_wardrobe') {
     const tokens = searchTokens(query.query);
     const matching = wardrobe.filter((item) => {
@@ -239,6 +245,16 @@ function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalo
       return wardrobe.indexOf(left) - wardrobe.indexOf(right);
     });
     return { ...query, totalMatches: matching.length, garments: sorted.slice(0, query.limit).map(safeGarment) };
+  }
+
+  if (query.tool === 'search_archived') {
+    const tokens = searchTokens(query.query);
+    const matching = archivedWardrobe.filter((item) => {
+      if (!tokens.length) return true;
+      const searchable = [item.name, item.sectionName, item.description ?? '', ...item.tags].join(' ').toLocaleLowerCase();
+      return tokens.every((token) => searchable.includes(token));
+    });
+    return { ...query, totalMatches: matching.length, garments: matching.slice(0, query.limit).map(safeGarment) };
   }
 
   if (query.tool === 'search_memory') {
@@ -268,6 +284,7 @@ async function gatherWardrobeReadContext(
   apiKey: string,
   userMessage: string,
   wardrobe: WardrobeCatalogItem[],
+  archivedWardrobe: WardrobeCatalogItem[],
   sections: WardrobeSectionOption[],
   wearHistory: WardrobeWearHistoryItem[],
   memoryContext: string,
@@ -287,13 +304,15 @@ async function gatherWardrobeReadContext(
         role: 'system',
         content: `Plan read-only local data queries for a wardrobe assistant. The device-local date is ${localDate.date} (${localDate.weekday}) in ${localDate.timeZone}.
 You may query repeatedly before answering. Ask only for data needed to answer accurately, resolve referenced garments,
-calculate counts, recommend outfits, manage durable memory, or target a requested wardrobe/Timeline change. Use an empty query string to browse
+calculate counts, recommend outfits, manage durable memory, or target a requested wardrobe/Timeline change. Use search_archived
+when the person asks about or wants to restore a removed piece. Use an empty query string to browse
 by sort or date. Search matches garment names, sections, descriptions, and tags. Try natural synonyms in separate queries
 when useful. Timeline queries can filter dates, text, and garments worn together. Search memory when a preference, personal
 term, prior reason, or correction may matter. Durable memory contains preferences and personal terminology; recent memory
 contains a short activity trail. Return no more data than necessary.
 If the supplied query results are sufficient, return an empty queries array. Never answer the person in this step.
 Return JSON only: {"queries":[{"tool":"search_wardrobe","query":"white pants","sectionId":null,"sort":"wardrobe_order","limit":12}]}
+or {"queries":[{"tool":"search_archived","query":"purple saree","limit":12}]}
 or {"queries":[{"tool":"query_timeline","query":"college","dateFrom":null,"dateTo":null,"garmentIds":[],"limit":20}]}
 or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","limit":10}]}.`,
       },
@@ -303,6 +322,7 @@ or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","l
 <request>${userMessage}</request>
 <recent_conversation>${conversationContext}</recent_conversation>
 <wardrobe_summary>${JSON.stringify(wardrobeSummary(wardrobe))}</wardrobe_summary>
+<archived_summary>${JSON.stringify({ totalGarments: archivedWardrobe.length })}</archived_summary>
 <wardrobe_sections>${JSON.stringify(sections)}</wardrobe_sections>
 <timeline_summary>${JSON.stringify(timelineSummary)}</timeline_summary>
 <memory_summary>${JSON.stringify(memorySummary)}</memory_summary>
@@ -321,9 +341,10 @@ or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","l
     const toolNames = new Set(freshQueries.map((query) => query.tool));
     if (toolNames.size > 1) onProgress?.('Checking your wardrobe context…');
     else if (toolNames.has('search_wardrobe')) onProgress?.('Searching your wardrobe…');
+    else if (toolNames.has('search_archived')) onProgress?.('Checking archived pieces…');
     else if (toolNames.has('query_timeline')) onProgress?.('Checking your Timeline…');
     else onProgress?.('Reviewing what I remember…');
-    results.push(...freshQueries.map((query) => runWardrobeReadQuery(query, wardrobe, wearHistory, memoryContext)));
+    results.push(...freshQueries.map((query) => runWardrobeReadQuery(query, wardrobe, archivedWardrobe, wearHistory, memoryContext)));
     if (results.length >= 6) break;
   }
   return { wardrobeSummary: wardrobeSummary(wardrobe), timelineSummary, memorySummary, results };
@@ -383,6 +404,7 @@ export async function requestWardrobeAwareReply(
   userMessage: string,
   memoryContext: string,
   wardrobe: WardrobeCatalogItem[],
+  archivedWardrobe: WardrobeCatalogItem[],
   sections: WardrobeSectionOption[],
   wearHistory: WardrobeWearHistoryItem[],
   localDate: LocalDateContext,
@@ -391,7 +413,7 @@ export async function requestWardrobeAwareReply(
 ) {
   let readContext: unknown;
   try {
-    readContext = await gatherWardrobeReadContext(apiKey, userMessage, wardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
+    readContext = await gatherWardrobeReadContext(apiKey, userMessage, wardrobe, archivedWardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
   } catch (error) {
     if (error instanceof MuseRequestError) throw error;
     readContext = {
@@ -399,6 +421,7 @@ export async function requestWardrobeAwareReply(
       fallbackWardrobe: selectWardrobeContext(userMessage, wardrobe),
       fallbackTimeline: selectTimelineContext(userMessage, wearHistory),
       fallbackMemory: selectMemoryContext(userMessage, memoryContext),
+      fallbackArchived: selectWardrobeContext(userMessage, archivedWardrobe),
     };
   }
   const wardrobeContext = `${coordinatorInstructions}
@@ -457,6 +480,7 @@ for confirmation. Use exact IDs only. Available actions:
   description, sectionId, and tags, copying unchanged values from the catalog. For requests to add/remove tags, return
   the full final tag list.
 - archive_garment: use for remove/delete garment requests; archiving is recoverable and preserves wear history.
+- restore_garment: restore an exact garment returned by search_archived to its former section.
 - create_section and rename_section: use exact existing sectionId when renaming.
 - update_wear: correct an existing Timeline row. Return its COMPLETE resulting garmentIds, wornAt, and note, copying
   unchanged values from wear_history.
@@ -467,6 +491,7 @@ Never return proposedAction together with proposedWear. Suggestions and question
 proposedAction must be null or exactly one of these JSON shapes:
 {"type":"update_garment","garmentId":"exact-id","name":"full resulting name","description":"full resulting description","sectionId":"exact-id","tags":["full","resulting","tags"]}
 {"type":"archive_garment","garmentId":"exact-id"}
+{"type":"restore_garment","garmentId":"exact-archived-id"}
 {"type":"create_section","name":"new section name"}
 {"type":"rename_section","sectionId":"exact-id","name":"new section name"}
 {"type":"update_wear","wearId":"exact-id","garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"full resulting note"}
@@ -481,6 +506,7 @@ Use null for proposedAction when no local mutation should be proposed.
     ], 1024);
     const parsed = wardrobeConversationSchema.parse(parseJsonObject(response));
     const knownIds = new Set(wardrobe.map((garment) => garment.id));
+    const knownArchivedIds = new Set(archivedWardrobe.map((garment) => garment.id));
     const knownSectionIds = new Set(sections.map((section) => section.id));
     const knownWearIds = new Set(wearHistory.map((wear) => wear.id));
     const proposedIds = parsed.proposedWear ? [...new Set(parsed.proposedWear.garmentIds)] : [];
@@ -489,7 +515,7 @@ Use null for proposedAction when no local mutation should be proposed.
       ? { ...parsed.proposedWear, garmentIds: proposedIds }
       : null;
     const action = parsed.proposedAction as WardrobeMutation | null;
-    const proposedAction = action && validateWardrobeMutation(action, knownIds, knownSectionIds, knownWearIds, sections) ? action : null;
+    const proposedAction = action && validateWardrobeMutation(action, knownIds, knownArchivedIds, knownSectionIds, knownWearIds, sections) ? action : null;
     return {
       answer: parsed.answer,
       garmentIds: [...new Set(parsed.garmentIds)].filter((id) => knownIds.has(id)),
@@ -508,9 +534,10 @@ Use null for proposedAction when no local mutation should be proposed.
   }
 }
 
-function validateWardrobeMutation(action: WardrobeMutation, garmentIds: Set<string>, sectionIds: Set<string>, wearIds: Set<string>, sections: WardrobeSectionOption[]) {
+function validateWardrobeMutation(action: WardrobeMutation, garmentIds: Set<string>, archivedGarmentIds: Set<string>, sectionIds: Set<string>, wearIds: Set<string>, sections: WardrobeSectionOption[]) {
   if (action.type === 'update_garment') return garmentIds.has(action.garmentId) && sectionIds.has(action.sectionId) && new Set(action.tags).size === action.tags.length;
   if (action.type === 'archive_garment') return garmentIds.has(action.garmentId);
+  if (action.type === 'restore_garment') return archivedGarmentIds.has(action.garmentId);
   if (action.type === 'create_section') return !sections.some((section) => section.name.toLocaleLowerCase() === action.name.toLocaleLowerCase());
   if (action.type === 'rename_section') return sectionIds.has(action.sectionId) && !sections.some((section) => section.id !== action.sectionId && section.name.toLocaleLowerCase() === action.name.toLocaleLowerCase());
   if (action.type === 'update_wear') return wearIds.has(action.wearId) && action.garmentIds.every((id) => garmentIds.has(id)) && new Set(action.garmentIds).size === action.garmentIds.length;

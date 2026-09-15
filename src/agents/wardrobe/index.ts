@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getArchivedGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, restoreGarment, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -65,6 +65,11 @@ export async function updateWardrobeGarment(db: SQLiteDatabase, request: z.input
 export async function archiveWardrobeGarment(db: SQLiteDatabase, garmentId: string) {
   if (!garmentId.trim()) throw new Error('Garment ID is required.');
   await archiveGarment(db, garmentId);
+}
+
+export async function restoreWardrobeGarment(db: SQLiteDatabase, garmentId: string) {
+  if (!garmentId.trim()) throw new Error('Garment ID is required.');
+  await restoreGarment(db, garmentId);
 }
 
 export async function moveWardrobeGarment(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
@@ -181,6 +186,22 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
     wearCount: garment.wearCount,
     lastWornAt: garment.lastWornAt,
   })));
+}
+
+export async function readArchivedWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeCatalogItem[]> {
+  const [garments, sections] = await Promise.all([getArchivedGarments(db), getWardrobeSectionOptions(db)]);
+  const sectionNames = new Map(sections.map((section) => [section.id, section.name]));
+  return garments.map((garment) => ({
+    id: garment.id,
+    name: garment.name,
+    sectionId: garment.sectionId ?? '',
+    sectionName: sectionNames.get(garment.sectionId ?? '') ?? 'Unfiled',
+    description: garment.description,
+    tags: garment.tags,
+    canonicalImage: garment.canonicalImage,
+    wearCount: garment.wearCount,
+    lastWornAt: garment.lastWornAt,
+  }));
 }
 
 export async function readWardrobeWearHistory(db: SQLiteDatabase, limit?: number): Promise<WardrobeWearHistoryItem[]> {

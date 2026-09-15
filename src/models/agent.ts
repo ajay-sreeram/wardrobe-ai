@@ -37,6 +37,7 @@ export type WearContext = { wornAt: string; note: string };
 export type WardrobeMutation =
   | { type: 'update_garment'; garmentId: string; name: string; description: string; sectionId: string; tags: string[] }
   | { type: 'archive_garment'; garmentId: string }
+  | { type: 'restore_garment'; garmentId: string }
   | { type: 'create_section'; name: string }
   | { type: 'rename_section'; sectionId: string; name: string }
   | { type: 'update_wear'; wearId: string; garmentIds: string[]; wornAt: string; note: string }

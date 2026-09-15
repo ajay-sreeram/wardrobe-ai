@@ -92,6 +92,21 @@ export function rememberGarmentArchive(garmentId: string, garmentName: string) {
   });
 }
 
+export function rememberGarmentRestore(garmentId: string, garmentName: string, sectionName: string) {
+  return serializeWrite(async () => {
+    const existing = await readMemoryFile('USER.md');
+    const archivedMarker = `[archived garment: ${garmentName}]`.toLocaleLowerCase();
+    const entries = existing.split('\n').filter((line) => line.startsWith('- ')).map((line) => (
+      line.toLocaleLowerCase().includes(archivedMarker) ? line.replace(/\[archived garment:/i, '[garment:') : line
+    ));
+    if (!entries.some((line) => line.toLocaleLowerCase().includes(`id: ${garmentId}`.toLocaleLowerCase()))) {
+      entries.push(`- ${garmentName} (${sectionName}; id: ${garmentId})`);
+    }
+    writeUserEntries(entries);
+    await appendRecentNow(`Restored ${garmentName} to ${sectionName}. It is active in the wardrobe again; Timeline history was unchanged.`);
+  });
+}
+
 export function rememberExplicitWardrobeFacts(facts: string[]) {
   return serializeWrite(async () => {
     if (!facts.length) return;

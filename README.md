@@ -36,6 +36,7 @@ The app currently includes:
 - three-attempt transient API recovery, scoped fallback messages, and device-local relative-date context
 - live plain-language agent stages and one-tap retry without duplicating the original Chat message
 - new-conversation boundaries, independently clearable Chat history, and archive-aware Muse memory reconciliation
+- a compact Archived Pieces screen with UI and confirmation-first natural-language restore support
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

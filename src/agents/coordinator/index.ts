@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberGarmentArchive, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
+import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberGarmentArchive, rememberGarmentRestore, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -147,8 +147,8 @@ export async function coordinateImageObservation({
 
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = [], onProgress?: (text: string) => void) {
   onProgress?.('Reading your wardrobe context…');
-  const [memory, wardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages), onProgress);
+  const [memory, wardrobe, archivedWardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), readArchivedWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, archivedWardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages), onProgress);
   await forgetExplicitWardrobeFacts(reply.forgottenMemoryFacts).catch(() => undefined);
   await Promise.all([
     rememberConversation(userMessage, reply.answer),
@@ -157,6 +157,7 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
   const sectionById = new Map(sections.map((section) => [section.id, section.name]));
   const wearById = new Map(wearHistory.map((wear) => [wear.id, wear]));
+  const archivedById = new Map(archivedWardrobe.map((garment) => [garment.id, garment]));
   return {
     text: reply.answer,
     garments: reply.garmentIds.flatMap((id) => {
@@ -170,13 +171,14 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
         return garment ? [garment] : [];
       }),
     } : null,
-    actionProposal: reply.proposedAction ? describeWardrobeMutation(reply.proposedAction, byId, sectionById, wearById) : null,
+    actionProposal: reply.proposedAction ? describeWardrobeMutation(reply.proposedAction, byId, archivedById, sectionById, wearById) : null,
   };
 }
 
 function describeWardrobeMutation(
   action: WardrobeMutation,
   garments: Map<string, Awaited<ReturnType<typeof readWardrobeCatalog>>[number]>,
+  archivedGarments: Map<string, Awaited<ReturnType<typeof readArchivedWardrobeCatalog>>[number]>,
   sections: Map<string, string>,
   wears: Map<string, Awaited<ReturnType<typeof readWardrobeWearHistory>>[number]>,
 ) {
@@ -188,6 +190,10 @@ function describeWardrobeMutation(
   if (action.type === 'archive_garment') {
     const garment = garments.get(action.garmentId)!;
     return { action, title: `Archive ${garment.name}?`, description: 'It will leave your active wardrobe, while its Timeline history remains available.', confirmLabel: 'Archive garment', garments: [garment] };
+  }
+  if (action.type === 'restore_garment') {
+    const garment = archivedGarments.get(action.garmentId)!;
+    return { action, title: `Restore ${garment.name}?`, description: `It will return to ${garment.sectionName}. Its existing Timeline history will stay unchanged.`, confirmLabel: 'Restore garment', garments: [garment] };
   }
   if (action.type === 'create_section') return { action, title: `Create ${action.name}?`, description: 'This will add a new section to your wardrobe.', confirmLabel: 'Create section', garments: [] };
   if (action.type === 'rename_section') return { action, title: `Rename ${sections.get(action.sectionId)}?`, description: `The section will be renamed to ${action.name}. Its garments will stay in place.`, confirmLabel: 'Rename section', garments: [] };
@@ -243,6 +249,13 @@ export async function coordinateGarmentArchive(db: SQLiteDatabase, garmentId: st
   if (garment) await rememberGarmentArchive(garment.id, garment.name).catch(() => undefined);
 }
 
+export async function coordinateGarmentRestore(db: SQLiteDatabase, garmentId: string) {
+  const garment = await readArchivedWardrobeCatalog(db).then((items) => items.find((item) => item.id === garmentId));
+  if (!garment) throw new Error('Archived garment not found.');
+  await restoreWardrobeGarment(db, garmentId);
+  await rememberGarmentRestore(garment.id, garment.name, garment.sectionName).catch(() => undefined);
+}
+
 export async function coordinateGarmentMove(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
   return moveWardrobeGarment(db, garmentId, direction);
 }
@@ -290,6 +303,11 @@ export async function coordinateWardrobeMutation(db: SQLiteDatabase, action: War
     await coordinateGarmentArchive(db, action.garmentId);
     const summary = `Archived ${garment?.name ?? 'garment'}`;
     return summary;
+  }
+  if (action.type === 'restore_garment') {
+    const garment = await readArchivedWardrobeCatalog(db).then((items) => items.find((item) => item.id === action.garmentId));
+    await coordinateGarmentRestore(db, action.garmentId);
+    return `Restored ${garment?.name ?? 'garment'}`;
   }
   if (action.type === 'create_section') {
     await createSection(db, action.name);

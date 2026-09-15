@@ -22,6 +22,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ contentStyle: { backgroundColor: colors.background }, headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="archived" options={{ presentation: 'modal' }} />
             <Stack.Screen name="garment/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="wear/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="section/[id]" options={{ presentation: 'modal' }} />

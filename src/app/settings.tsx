@@ -62,6 +62,16 @@ export default function SettingsScreen() {
             </View>
           ))}
         </View>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/archived')}>
+          <Card style={styles.chatCard}>
+            <View style={styles.localIcon}><Ionicons color={colors.moss} name="archive-outline" size={22} /></View>
+            <View style={styles.flex}>
+              <AppText variant="label">Archived Pieces</AppText>
+              <AppText variant="caption" style={styles.muted}>View and restore garments removed from your active wardrobe.</AppText>
+            </View>
+            <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
+          </Card>
+        </Pressable>
         <Card style={styles.chatCard}>
           <View style={styles.flex}>
             <AppText variant="label">Chat history</AppText>

@@ -67,6 +67,11 @@ export async function getActiveGarments(db: SQLiteDatabase): Promise<Garment[]> 
   return rows.map(mapGarment);
 }
 
+export async function getArchivedGarments(db: SQLiteDatabase): Promise<Garment[]> {
+  const rows = await db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NOT NULL ORDER BY archived_at DESC');
+  return rows.map(mapGarment);
+}
+
 export async function getActiveGarment(db: SQLiteDatabase, garmentId: string): Promise<Garment | null> {
   const row = await db.getFirstAsync<GarmentRow>('SELECT * FROM garments WHERE id = ? AND archived_at IS NULL', garmentId);
   return row ? mapGarment(row) : null;
@@ -211,6 +216,16 @@ export async function archiveGarment(db: SQLiteDatabase, garmentId: string) {
     garmentId,
   );
   if (!result.changes) throw new Error('Garment not found.');
+}
+
+export async function restoreGarment(db: SQLiteDatabase, garmentId: string) {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    'UPDATE garments SET archived_at = NULL, updated_at = ? WHERE id = ? AND archived_at IS NOT NULL',
+    now,
+    garmentId,
+  );
+  if (!result.changes) throw new Error('Archived garment not found.');
 }
 
 export async function insertWearRecord(db: SQLiteDatabase, input: { id: string; garmentIds: string[]; wornAt: string; note: string | null }) {

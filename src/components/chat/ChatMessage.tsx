@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ActionConfirmationCard } from '@/components/chat/ActionConfirmationCard';
@@ -12,7 +12,7 @@ import { AppText } from '@/components/ui/AppText';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-export function ChatMessage({ message }: { message: ChatMessageModel }) {
+export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; onRetry?: () => void }) {
   if (message.kind === 'status') return <AgentProgress text={message.text} />;
   if (message.kind === 'confirmation') return <ConfirmationCard {...message} />;
   if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
@@ -43,6 +43,12 @@ export function ChatMessage({ message }: { message: ChatMessageModel }) {
       <View style={styles.error}>
         <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
         <AppText variant="caption" style={styles.errorText}>{message.text}</AppText>
+        {message.retryable && onRetry ? (
+          <Pressable accessibilityLabel="Retry failed request" hitSlop={8} onPress={onRetry} style={styles.retry}>
+            <Ionicons color={colors.danger} name="refresh" size={15} />
+            <AppText variant="caption" style={styles.retryText}>Retry</AppText>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
@@ -63,6 +69,8 @@ const styles = StyleSheet.create({
   imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
   error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#F6E3DF', borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   errorText: { color: colors.danger, flex: 1 },
+  retry: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
+  retryText: { color: colors.danger },
   statusNote: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.mossSoft, borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   statusText: { color: colors.inkMuted, flex: 1 },
 });

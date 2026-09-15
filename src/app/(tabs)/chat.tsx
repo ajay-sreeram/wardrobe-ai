@@ -18,12 +18,15 @@ import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
 import { colors, radius, spacing } from '@/theme/tokens';
 
+type FailedSubmission = { errorId: string; images: PendingChatImage[]; text: string };
+
 export default function ChatScreen() {
   const db = useSQLiteContext();
-  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
+  const [failedSubmission, setFailedSubmission] = useState<FailedSubmission | null>(null);
   const [progressText, setProgressText] = useState('Thinking…');
   const canSend = historyReady && Boolean(draft.trim() || pendingImages.length) && !sending;
 
@@ -61,11 +64,12 @@ export default function ChatScreen() {
     }
   }
 
-  async function submit(submittedText: string, submittedImages: PendingChatImage[]) {
+  async function submit(submittedText: string, submittedImages: PendingChatImage[], displayUserMessage = true) {
     if (!historyReady || sendingRef.current || (!submittedText && !submittedImages.length)) return;
     sendingRef.current = true;
     setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
+    setFailedSubmission(null);
     try {
       const imageMessages: ChatMessageModel[] = submittedImages.map((image) => ({
         id: image.id,
@@ -75,7 +79,7 @@ export default function ChatScreen() {
         width: image.width,
         height: image.height,
       }));
-      sendMessage(imageMessages, submittedText);
+      if (displayUserMessage) sendMessage(imageMessages, submittedText);
 
       if (submittedImages.length) {
         if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
@@ -146,7 +150,7 @@ export default function ChatScreen() {
         return;
       }
 
-      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText, messages);
+      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText, messages, setProgressText);
       addMessages([
         { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
         ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),
@@ -165,7 +169,8 @@ export default function ChatScreen() {
         }] : []),
       ]);
     } catch (error) {
-      addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');
+      const errorId = addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.', true);
+      setFailedSubmission({ errorId, images: submittedImages, text: submittedText });
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -181,6 +186,13 @@ export default function ChatScreen() {
     void submit(prompt, []);
   }
 
+  function handleRetry() {
+    if (!failedSubmission || sending) return;
+    const retry = failedSubmission;
+    removeMessage(retry.errorId);
+    void submit(retry.text, retry.images, false);
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={88} style={styles.flex}>
@@ -192,7 +204,7 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           ListFooterComponent={messages.length === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} /> : null}
           ref={listRef}
-          renderItem={({ item }) => <ChatMessage message={item} />}
+          renderItem={({ item }) => <ChatMessage message={item} onRetry={item.kind === 'error' && item.id === failedSubmission?.errorId ? handleRetry : undefined} />}
         />
         {sending ? <View style={styles.progress}><AgentProgress text={progressText} /></View> : null}
         <View style={styles.composerWrap}>

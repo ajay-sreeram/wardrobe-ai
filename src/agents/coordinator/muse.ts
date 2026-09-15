@@ -273,6 +273,7 @@ async function gatherWardrobeReadContext(
   memoryContext: string,
   localDate: LocalDateContext,
   conversationContext: string,
+  onProgress?: (text: string) => void,
 ) {
   const records = memoryRecords(memoryContext);
   const timelineSummary = { totalEntries: wearHistory.length, newestDate: wearHistory[0]?.wornAt ?? null, oldestDate: wearHistory.at(-1)?.wornAt ?? null };
@@ -280,6 +281,7 @@ async function gatherWardrobeReadContext(
   const results: ReturnType<typeof runWardrobeReadQuery>[] = [];
   const completedQueries = new Set<string>();
   for (let round = 0; round < 3; round += 1) {
+    onProgress?.(round ? 'Looking a little deeper…' : 'Understanding what you need…');
     const response = await requestMuseContent(apiKey, [
       {
         role: 'system',
@@ -316,6 +318,11 @@ or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","l
       return true;
     }).slice(0, 6 - results.length);
     if (!freshQueries.length) break;
+    const toolNames = new Set(freshQueries.map((query) => query.tool));
+    if (toolNames.size > 1) onProgress?.('Checking your wardrobe context…');
+    else if (toolNames.has('search_wardrobe')) onProgress?.('Searching your wardrobe…');
+    else if (toolNames.has('query_timeline')) onProgress?.('Checking your Timeline…');
+    else onProgress?.('Reviewing what I remember…');
     results.push(...freshQueries.map((query) => runWardrobeReadQuery(query, wardrobe, wearHistory, memoryContext)));
     if (results.length >= 6) break;
   }
@@ -380,10 +387,11 @@ export async function requestWardrobeAwareReply(
   wearHistory: WardrobeWearHistoryItem[],
   localDate: LocalDateContext,
   conversationContext = '',
+  onProgress?: (text: string) => void,
 ) {
   let readContext: unknown;
   try {
-    readContext = await gatherWardrobeReadContext(apiKey, userMessage, wardrobe, sections, wearHistory, memoryContext, localDate, conversationContext);
+    readContext = await gatherWardrobeReadContext(apiKey, userMessage, wardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
   } catch (error) {
     if (error instanceof MuseRequestError) throw error;
     readContext = {
@@ -420,6 +428,7 @@ ${conversationContext}
 </recent_conversation>`;
 
   try {
+    onProgress?.('Putting your answer together…');
     const response = await requestMuseContent(apiKey, [
       {
         role: 'system',

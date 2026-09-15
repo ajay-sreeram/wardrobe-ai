@@ -46,7 +46,7 @@ export type ChatMessage =
   | { id: string; kind: 'text'; role: 'assistant' | 'user'; text: string }
   | { id: string; kind: 'image'; role: 'user'; uri: string; width: number; height: number }
   | { id: string; kind: 'status'; stage: AgentStage; text: string }
-  | { id: string; kind: 'error'; text: string }
+  | { id: string; kind: 'error'; text: string; retryable?: boolean }
   | { id: string; kind: 'wardrobe_results'; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'wear_confirmation'; garments: WardrobeChatGarment[]; garmentIds: string[]; wornAt: string; note: string }
   | { id: string; kind: 'wear_status'; garmentNames: string[]; wornAt: string; logged: boolean }

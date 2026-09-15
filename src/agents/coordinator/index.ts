@@ -144,9 +144,10 @@ export async function coordinateImageObservation({
   };
 }
 
-export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
+export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = [], onProgress?: (text: string) => void) {
+  onProgress?.('Reading your wardrobe context…');
   const [memory, wardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages));
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages), onProgress);
   await forgetExplicitWardrobeFacts(reply.forgottenMemoryFacts).catch(() => undefined);
   await Promise.all([
     rememberConversation(userMessage, reply.answer),

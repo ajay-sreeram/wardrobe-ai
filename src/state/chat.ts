@@ -24,7 +24,8 @@ type ChatState = {
   sendMessage: (images: ChatMessage[], text?: string) => void;
   addMessages: (messages: ChatMessage[]) => void;
   replaceMessage: (id: string, message: ChatMessage) => void;
-  addError: (text: string) => void;
+  removeMessage: (id: string) => void;
+  addError: (text: string, retryable?: boolean) => string;
   addAssistantMessage: (text: string) => void;
 };
 
@@ -38,6 +39,7 @@ const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'wardrobe_
 function saveHistory(messages: ChatMessage[]) {
   const safeMessages = messages
     .filter((message): message is PersistedChatMessage => persistedKinds.has(message.kind))
+    .map((message) => message.kind === 'error' ? { id: message.id, kind: message.kind, text: message.text } : message)
     .slice(-maximumPersistedMessages);
   writeChatHistory(safeMessages);
 }
@@ -78,7 +80,16 @@ export const useChatStore = create<ChatState>((set) => ({
     saveHistory(messages);
     return { messages };
   }),
-  addError: (text) => set((state) => ({ messages: appendMessages(state, [{ id: `error-${Date.now()}`, kind: 'error', text }]) })),
+  removeMessage: (id) => set((state) => {
+    const messages = state.messages.filter((message) => message.id !== id);
+    saveHistory(messages);
+    return { messages };
+  }),
+  addError: (text, retryable = false) => {
+    const id = `error-${Date.now()}`;
+    set((state) => ({ messages: appendMessages(state, [{ id, kind: 'error', text, retryable }]) }));
+    return id;
+  },
   addAssistantMessage: (text) => set((state) => ({
     messages: appendMessages(state, [{ id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text }]),
   })),

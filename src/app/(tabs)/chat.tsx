@@ -155,6 +155,11 @@ export default function ChatScreen() {
       const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText, messages, setProgressText);
       addMessages([
         { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
+        ...reply.outfitSuggestions.map((suggestion, index) => ({
+          id: `outfit-suggestion-${Date.now()}-${index}`,
+          kind: 'outfit_suggestion' as const,
+          ...suggestion,
+        })),
         ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),
         ...(reply.wearProposal ? [{
           id: `wear-confirmation-${Date.now()}`,

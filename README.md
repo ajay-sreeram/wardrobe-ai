@@ -37,6 +37,7 @@ The app currently includes:
 - live plain-language agent stages and one-tap retry without duplicating the original Chat message
 - new-conversation boundaries, independently clearable Chat history, and archive-aware Muse memory reconciliation
 - a compact Archived Pieces screen with UI and confirmation-first natural-language restore support
+- reusable rich garment-collection cards for Muse outfit suggestions, searches, and future grouped results
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

@@ -36,6 +36,7 @@ function recentConversationContext(messages: ChatMessage[]) {
   const contextEntries = messages.slice(boundaryIndex + 1).flatMap((message) => {
     if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
     if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
+    if (message.kind === 'outfit_suggestion') return [`Assistant suggested ${message.title}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(' + ')}; reason: ${message.reason}`];
     if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
     if (message.kind === 'wear_status') return [`Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
     if (message.kind === 'action_confirmation') return [`Pending local change awaiting confirmation: ${message.description}`];
@@ -164,6 +165,14 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
       const garment = byId.get(id);
       return garment ? [garment] : [];
     }),
+    outfitSuggestions: reply.outfitSuggestions.map((suggestion) => ({
+      title: suggestion.title,
+      reason: suggestion.reason,
+      garments: suggestion.garmentIds.flatMap((id) => {
+        const garment = byId.get(id);
+        return garment ? [garment] : [];
+      }),
+    })),
     wearProposal: reply.proposedWear ? {
       ...reply.proposedWear,
       garments: reply.proposedWear.garmentIds.flatMap((id) => {

@@ -6,6 +6,7 @@ import { ActionConfirmationCard } from '@/components/chat/ActionConfirmationCard
 import { ConfirmationCard } from '@/components/chat/ConfirmationCard';
 import { DuplicateCandidateCard } from '@/components/chat/DuplicateCandidateCard';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
+import { OutfitSuggestionCard } from '@/components/chat/OutfitSuggestionCard';
 import { WardrobeResultsCard } from '@/components/chat/WardrobeResultsCard';
 import { WearConfirmationCard } from '@/components/chat/WearConfirmationCard';
 import { AppText } from '@/components/ui/AppText';
@@ -27,6 +28,7 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
   if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
   if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'wardrobe_results') return <WardrobeResultsCard garments={message.garments} />;
+  if (message.kind === 'outfit_suggestion') return <OutfitSuggestionCard message={message} />;
   if (message.kind === 'wear_confirmation') return <WearConfirmationCard message={message} />;
   if (message.kind === 'action_confirmation') return <ActionConfirmationCard message={message} />;
   if (message.kind === 'action_status') {

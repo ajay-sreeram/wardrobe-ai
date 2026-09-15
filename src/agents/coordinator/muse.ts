@@ -55,6 +55,11 @@ const wardrobeMutationSchema = z.discriminatedUnion('type', [
 const wardrobeConversationSchema = z.object({
   answer: z.string().min(1),
   garmentIds: z.array(z.string()).max(12),
+  outfitSuggestions: z.array(z.object({
+    title: z.string().trim().min(1).max(80),
+    reason: z.string().trim().min(1).max(240),
+    garmentIds: z.array(z.string().min(1)).min(1).max(6),
+  })).max(3).default([]),
   memoryFacts: z.array(z.string().min(1).max(240)).max(4),
   forgottenMemoryFacts: z.array(z.string().min(1).max(240)).max(4).default([]),
   proposedWear: z.object({
@@ -459,6 +464,10 @@ ${conversationContext}
 When showing, listing, comparing, or recommending specific owned garments, return their exact IDs in garmentIds
 in the most useful order. Return no more than 12 IDs. For a count-only or unrelated question, garmentIds may be empty.
 If nothing matches, return an empty array.
+For a concrete outfit recommendation, put each coordinated look in outfitSuggestions with a short natural title, a concise
+useful reason, and exact garment IDs in styling order. A one-piece dress may be a complete look. Return at most three looks.
+Do not repeat outfit-suggestion IDs in the top-level garmentIds; reserve garmentIds for searches, lists, and comparisons.
+When outfitSuggestions is non-empty, keep answer to one short introduction and do not repeat the garment names or reasons there.
 Treat the recent conversation as context for the current message. If it contains an unresolved pending wear proposal
 and the current message identifies or locates a missing garment, return a new combined proposedWear containing both
 the previously matched garments and the newly resolved garment. The person does not need to repeat "I wore it".
@@ -497,7 +506,7 @@ proposedAction must be null or exactly one of these JSON shapes:
 {"type":"update_wear","wearId":"exact-id","garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"full resulting note"}
 {"type":"delete_wear","wearId":"exact-id"}
 Return JSON only in this exact shape:
-{"answer":"natural direct response","garmentIds":["exact-id"],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
+{"answer":"natural direct response","garmentIds":["exact-id"],"outfitSuggestions":[{"title":"short look name","reason":"why it fits","garmentIds":["exact-id"]}],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
 Use null for proposedWear when no wear record should be proposed.
 Use null for proposedAction when no local mutation should be proposed.
 `,
@@ -516,11 +525,16 @@ Use null for proposedAction when no local mutation should be proposed.
       : null;
     const action = parsed.proposedAction as WardrobeMutation | null;
     const proposedAction = action && validateWardrobeMutation(action, knownIds, knownArchivedIds, knownSectionIds, knownWearIds, sections) ? action : null;
+    const outfitSuggestions = parsed.outfitSuggestions.flatMap((suggestion) => {
+      const garmentIds = [...new Set(suggestion.garmentIds)];
+      return garmentIds.length && garmentIds.every((id) => knownIds.has(id)) ? [{ ...suggestion, garmentIds }] : [];
+    });
     return {
       answer: parsed.answer,
       garmentIds: [...new Set(parsed.garmentIds)].filter((id) => knownIds.has(id)),
       memoryFacts: parsed.memoryFacts,
       forgottenMemoryFacts: parsed.forgottenMemoryFacts,
+      outfitSuggestions,
       proposedWear,
       proposedAction: proposedWear ? null : proposedAction,
     };
@@ -530,7 +544,7 @@ Use null for proposedAction when no local mutation should be proposed.
       { role: 'system', content: `${wardrobeContext}\nAnswer the person's message naturally in plain text.` },
       { role: 'user', content: userMessage },
     ], 1024);
-    return { answer, garmentIds: [], memoryFacts: [], forgottenMemoryFacts: [], proposedWear: null, proposedAction: null };
+    return { answer, garmentIds: [], outfitSuggestions: [], memoryFacts: [], forgottenMemoryFacts: [], proposedWear: null, proposedAction: null };
   }
 }
 

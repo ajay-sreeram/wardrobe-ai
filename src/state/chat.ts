@@ -36,7 +36,7 @@ const previewMessages: ChatMessage[] = [
 ];
 
 const maximumPersistedMessages = 150;
-const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'conversation_boundary', 'wardrobe_results', 'wear_status', 'action_status']);
+const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'conversation_boundary', 'wardrobe_results', 'outfit_suggestion', 'wear_status', 'action_status']);
 
 function saveHistory(messages: ChatMessage[]) {
   const safeMessages = messages

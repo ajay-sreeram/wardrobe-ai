@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWear } from '@/agents/memory';
+import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -229,4 +229,14 @@ export async function coordinateWearRecord(db: SQLiteDatabase, input: { garmentI
   const wearId = await recordWardrobeWear(db, input);
   await rememberWear(input.garmentNames, input.wornAt, input.note).catch(() => undefined);
   return wearId;
+}
+
+export async function coordinateWearUpdate(db: SQLiteDatabase, input: { wearId: string; garmentIds: string[]; garmentNames: string[]; wornAt: string; note: string }) {
+  await updateWardrobeWear(db, input);
+  await rememberWearCorrection(input.garmentNames, input.wornAt, input.note).catch(() => undefined);
+}
+
+export async function coordinateWearDelete(db: SQLiteDatabase, wearId: string, wornAt: string) {
+  await deleteWardrobeWear(db, wearId);
+  await rememberWearDeletion(wornAt).catch(() => undefined);
 }

@@ -1,5 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,6 +15,7 @@ import { colors, spacing } from '@/theme/tokens';
 
 export default function TimelineScreen() {
   const db = useSQLiteContext();
+  const router = useRouter();
   const [entries, setEntries] = useState<WearEntry[]>([]);
 
   useFocusEffect(useCallback(() => {
@@ -37,7 +38,7 @@ export default function TimelineScreen() {
             <AppText style={styles.emptyText}>Tell the wardrobe assistant what you wore, then confirm the entry in Chat.</AppText>
           </View>
         )}
-        renderItem={({ item, index }) => <WearCard entry={item} showLine={index < entries.length - 1} />}
+        renderItem={({ item, index }) => <WearCard entry={item} onPress={() => router.push({ pathname: '/wear/[id]', params: { id: item.id } })} showLine={index < entries.length - 1} />}
       />
     </SafeAreaView>
   );

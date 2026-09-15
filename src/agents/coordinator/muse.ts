@@ -145,7 +145,7 @@ and requests to find or show garments. The catalog is the only source of truth f
 Never invent a garment or count. Understand synonyms and culturally varied wardrobe terminology naturally.
 If nothing matches, say so naturally. Do not claim to change wardrobe data.
 Today's local date is ${localDate}.
-Use <wear_history> to understand which garments have been worn together and the stated context or reason. This history
+Use <wear_history> as the canonical record of logged outfits. Use it to understand which garments have been worn together and the stated context or reason. This history
 can inform recommendations, but a single outfit is evidence of a past choice—not automatically a lasting preference.
 Give explicit preferences and repeated patterns more weight, and never invent why an outfit was chosen.
 

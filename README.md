@@ -25,6 +25,7 @@ The app currently includes:
 - persistent garment and section ordering, plus section creation and renaming
 - tap-to-open garment cards with long-press horizontal drag reordering
 - confirmation-first conversational wear logging into the local Timeline diary
+- tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - pending outfit context across Chat follow-ups and combined add-plus-log handling for worn photo uploads
 - outfit-pairing history and explicit rationale/preferences supplied to Muse for grounded recommendations
 

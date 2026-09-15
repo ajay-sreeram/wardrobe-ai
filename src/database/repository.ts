@@ -236,6 +236,54 @@ export async function insertWearRecord(db: SQLiteDatabase, input: { id: string; 
   });
 }
 
+async function recalculateGarmentWearStats(db: SQLiteDatabase) {
+  const wearRows = await db.getAllAsync<{ garment_ids: string; worn_at: string }>('SELECT garment_ids, worn_at FROM wears');
+  const stats = new Map<string, { count: number; lastWornAt: string }>();
+
+  for (const wear of wearRows) {
+    const garmentIds = JSON.parse(wear.garment_ids) as string[];
+    for (const garmentId of garmentIds) {
+      const current = stats.get(garmentId);
+      stats.set(garmentId, {
+        count: (current?.count ?? 0) + 1,
+        lastWornAt: !current || wear.worn_at > current.lastWornAt ? wear.worn_at : current.lastWornAt,
+      });
+    }
+  }
+
+  await db.runAsync('UPDATE garments SET wear_count = 0, last_worn_at = NULL');
+  for (const [garmentId, garmentStats] of stats) {
+    await db.runAsync(
+      'UPDATE garments SET wear_count = ?, last_worn_at = ? WHERE id = ?',
+      garmentStats.count,
+      garmentStats.lastWornAt,
+      garmentId,
+    );
+  }
+}
+
+export async function updateWearRecord(db: SQLiteDatabase, input: { id: string; garmentIds: string[]; wornAt: string; note: string | null }) {
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      'UPDATE wears SET garment_ids = ?, worn_at = ?, note = ? WHERE id = ?',
+      JSON.stringify(input.garmentIds),
+      input.wornAt,
+      input.note,
+      input.id,
+    );
+    if (!result.changes) throw new Error('Timeline entry not found.');
+    await recalculateGarmentWearStats(db);
+  });
+}
+
+export async function deleteWearRecord(db: SQLiteDatabase, wearId: string) {
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync('DELETE FROM wears WHERE id = ?', wearId);
+    if (!result.changes) throw new Error('Timeline entry not found.');
+    await recalculateGarmentWearStats(db);
+  });
+}
+
 export async function getWearTimeline(db: SQLiteDatabase): Promise<WearEntry[]> {
   const [wearRows, garmentRows] = await Promise.all([
     db.getAllAsync<{ id: string; garment_ids: string; worn_at: string; note: string | null }>('SELECT * FROM wears ORDER BY worn_at DESC'),
@@ -252,4 +300,9 @@ export async function getWearTimeline(db: SQLiteDatabase): Promise<WearEntry[]> 
       garments: garmentIds.flatMap((id) => garments.filter((garment) => garment.id === id)),
     };
   });
+}
+
+export async function getWearEntry(db: SQLiteDatabase, wearId: string): Promise<WearEntry | null> {
+  const timeline = await getWearTimeline(db);
+  return timeline.find((entry) => entry.id === wearId) ?? null;
 }

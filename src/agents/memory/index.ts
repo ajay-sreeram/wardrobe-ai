@@ -55,6 +55,14 @@ export function rememberWear(garmentNames: string[], wornAt: string, note: strin
   return serializeWrite(() => appendRecentNow(`Logged ${garmentNames.join(' + ')} for ${wornAt}${note ? ` (${clean(note, 160)})` : ''}.`));
 }
 
+export function rememberWearCorrection(garmentNames: string[], wornAt: string, note: string) {
+  return serializeWrite(() => appendRecentNow(`Corrected Timeline entry to ${garmentNames.join(' + ')} for ${wornAt}${note ? ` (${clean(note, 160)})` : ''}. SQLite Timeline is canonical.`));
+}
+
+export function rememberWearDeletion(wornAt: string) {
+  return serializeWrite(() => appendRecentNow(`Deleted an incorrect Timeline entry for ${wornAt}. SQLite Timeline is canonical.`));
+}
+
 export function rememberExplicitWardrobeFacts(facts: string[]) {
   return serializeWrite(async () => {
     if (!facts.length) return;

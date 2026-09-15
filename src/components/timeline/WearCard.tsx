@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
@@ -8,7 +9,7 @@ import { colors, spacing } from '@/theme/tokens';
 
 const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' });
 
-export function WearCard({ entry, showLine }: { entry: WearEntry; showLine: boolean }) {
+export function WearCard({ entry, showLine, onPress }: { entry: WearEntry; showLine: boolean; onPress: () => void }) {
   const date = new Date(`${entry.wornAt}T12:00:00`);
   return (
     <View style={styles.row}>
@@ -18,13 +19,20 @@ export function WearCard({ entry, showLine }: { entry: WearEntry; showLine: bool
       </View>
       <View style={styles.flex}>
         <AppText variant="caption" style={styles.date}>{dateFormatter.format(date)}</AppText>
-        <Card style={styles.card}>
-          <View style={styles.thumbnails}>{entry.garments.map((garment) => <GarmentTile compact garment={garment} key={garment.id} />)}</View>
-          <View style={styles.copy}>
-            <AppText variant="heading">{entry.garments.map((garment) => garment.name).join(' + ')}</AppText>
-            {entry.note ? <AppText variant="caption" style={styles.note}>{entry.note}</AppText> : null}
-          </View>
-        </Card>
+        <Pressable accessibilityHint="View or correct this outfit" accessibilityLabel={`${entry.garments.map((garment) => garment.name).join(' and ')}, ${dateFormatter.format(date)}`} accessibilityRole="button" onPress={onPress}>
+          {({ pressed }) => (
+            <Card style={[styles.card, pressed && styles.pressed]}>
+              <View style={styles.thumbnails}>{entry.garments.map((garment) => <GarmentTile compact garment={garment} key={garment.id} />)}</View>
+              <View style={styles.copy}>
+                <View style={styles.titleRow}>
+                  <AppText variant="heading" style={styles.title}>{entry.garments.map((garment) => garment.name).join(' + ')}</AppText>
+                  <Ionicons color={colors.inkMuted} name="chevron-forward" size={18} />
+                </View>
+                {entry.note ? <AppText variant="caption" style={styles.note}>{entry.note}</AppText> : null}
+              </View>
+            </Card>
+          )}
+        </Pressable>
       </View>
     </View>
   );
@@ -41,4 +49,7 @@ const styles = StyleSheet.create({
   thumbnails: { flexDirection: 'row', gap: spacing.xs },
   copy: { gap: 4, paddingHorizontal: spacing.xs, paddingBottom: spacing.xs },
   note: { color: colors.inkMuted },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
+  title: { flex: 1 },
+  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
 });

@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -36,6 +36,7 @@ const recordWearSchema = z.object({
   wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().trim().max(160),
 });
+const updateWearSchema = recordWearSchema.extend({ wearId: z.string().min(1) });
 
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
   const garment = addGarmentRequestSchema.parse(request);
@@ -121,6 +122,30 @@ export async function recordWardrobeWear(db: SQLiteDatabase, input: z.input<type
   const id = `wear-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await insertWearRecord(db, { id, garmentIds, wornAt: wear.wornAt, note: wear.note || null });
   return id;
+}
+
+export async function readWardrobeWear(db: SQLiteDatabase, wearId: string) {
+  if (!wearId.trim()) return null;
+  return getWearEntry(db, wearId);
+}
+
+export async function listActiveWardrobeGarments(db: SQLiteDatabase) {
+  return getActiveGarments(db);
+}
+
+export async function updateWardrobeWear(db: SQLiteDatabase, input: z.input<typeof updateWearSchema>) {
+  const wear = updateWearSchema.parse(input);
+  const garmentIds = [...new Set(wear.garmentIds)];
+  if (garmentIds.length !== wear.garmentIds.length) throw new Error('A garment was included more than once.');
+  const placeholders = garmentIds.map(() => '?').join(', ');
+  const garments = await db.getAllAsync<{ id: string }>(`SELECT id FROM garments WHERE id IN (${placeholders})`, ...garmentIds);
+  if (garments.length !== garmentIds.length) throw new Error('One or more garments could not be found.');
+  await updateWearRecord(db, { id: wear.wearId, garmentIds, wornAt: wear.wornAt, note: wear.note || null });
+}
+
+export async function deleteWardrobeWear(db: SQLiteDatabase, wearId: string) {
+  if (!wearId.trim()) throw new Error('Timeline entry ID is required.');
+  await deleteWearRecord(db, wearId);
 }
 
 export type WardrobeCatalogItem = {

@@ -26,4 +26,4 @@ export type ChatMessage =
   | { id: string; kind: 'image'; role: 'user'; uri: string; width: number; height: number }
   | { id: string; kind: 'status'; stage: AgentStage; text: string }
   | { id: string; kind: 'error'; text: string }
-  | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[] };
+  | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string };

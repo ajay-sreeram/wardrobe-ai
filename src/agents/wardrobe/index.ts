@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { insertGarment } from '@/database/repository';
+import { getWardrobeSectionOptions, insertGarment } from '@/database/repository';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
 
 export const wardrobeAgentScope = {
@@ -23,4 +23,8 @@ export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<
   const canonicalImageUri = await persistCanonicalGarmentImage(garment.canonicalImageUri, id);
   await insertGarment(db, { id, ...garment, canonicalImageUri });
   return id;
+}
+
+export async function listWardrobeSections(db: SQLiteDatabase) {
+  return getWardrobeSectionOptions(db);
 }

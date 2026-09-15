@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { coordinateGarmentAddition } from '@/agents/coordinator';
@@ -9,43 +9,34 @@ import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
-import { getWardrobeSectionOptions, type WardrobeSectionOption } from '@/database/repository';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[] }) {
+export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string }) {
   const db = useSQLiteContext();
   const [choice, setChoice] = useState<string | null>(null);
-  const [choosingSection, setChoosingSection] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savingSectionId, setSavingSectionId] = useState<string | null>(null);
-  const [sections, setSections] = useState<WardrobeSectionOption[]>([]);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    getWardrobeSectionOptions(db).then((result) => { if (active) setSections(result); });
-    return () => { active = false; };
-  }, [db]);
-
-  async function save(section: WardrobeSectionOption) {
+  async function save() {
     setError(null);
-    setSavingSectionId(section.id);
+    setSaving(true);
     try {
       await coordinateGarmentAddition({
         db,
         garmentName,
-        sectionId: section.id,
-        sectionName: section.name,
+        sectionId: suggestedSectionId,
+        sectionName: suggestedSectionName,
         description,
         tags,
         canonicalImageUri,
         userMessage,
         memoryFacts,
       });
-      setChoice(`Added to ${section.name}`);
+      setChoice(`Added to ${suggestedSectionName}`);
     } catch {
       setError('I could not save this garment locally. Please try again.');
     } finally {
-      setSavingSectionId(null);
+      setSaving(false);
     }
   }
 
@@ -68,31 +59,15 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
       <AppText style={styles.muted}>{description}</AppText>
       <View style={styles.nameRow}>
         <AppText variant="label">{garmentName}</AppText>
+        <AppText variant="caption" style={styles.sectionSuggestion}>Suggested section · {suggestedSectionName}</AppText>
         <View style={styles.chips}>{tags.map((tag) => <Chip key={tag} label={tag} />)}</View>
       </View>
       <View style={styles.actions}>
-        <AppButton disabled={Boolean(savingSectionId)} label="Add garment" onPress={() => setChoosingSection(true)} style={styles.flex} />
-        <AppButton disabled={Boolean(savingSectionId)} label="Not mine" onPress={() => setChoice('Not mine')} tone="secondary" style={styles.flex} />
+        <AppButton label={`Add to ${suggestedSectionName}`} loading={saving} onPress={save} style={styles.flex} />
+        <AppButton disabled={saving} label="Not mine" onPress={() => setChoice('Not mine')} tone="secondary" style={styles.flex} />
       </View>
-      <AppButton disabled={Boolean(savingSectionId)} label="Already exists" onPress={() => setChoice('Already exists')} tone="quiet" />
-      {choosingSection ? (
-        <View style={styles.sectionPicker}>
-          <AppText variant="label">Choose a wardrobe section</AppText>
-          <View style={styles.sectionActions}>
-            {sections.map((section) => (
-              <AppButton
-                key={section.id}
-                disabled={Boolean(savingSectionId)}
-                label={section.name}
-                loading={savingSectionId === section.id}
-                onPress={() => save(section)}
-                tone="secondary"
-              />
-            ))}
-          </View>
-          {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}
-        </View>
-      ) : null}
+      <AppButton disabled={saving} label="Already exists" onPress={() => setChoice('Already exists')} tone="quiet" />
+      {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}
     </Card>
   );
 }
@@ -103,10 +78,9 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   muted: { color: colors.inkMuted },
   nameRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  sectionSuggestion: { color: colors.moss },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   actions: { flexDirection: 'row', gap: spacing.sm },
-  sectionPicker: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.sm },
-  sectionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   error: { color: colors.danger },
   flex: { flex: 1 },
   complete: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, width: '88%' },

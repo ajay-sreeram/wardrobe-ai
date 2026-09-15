@@ -15,12 +15,13 @@ The app currently includes:
 - chat-only image selection with an explicit preview and send step; selected source photos are not copied into app storage
 - structured garment analysis through Gemini for only the photos attached to the current message
 - explicit section confirmation before the Wardrobe Agent saves a garment locally
+- Gemini section suggestions validated against the user's existing sections, enabling one-tap confirmation
 - transparent, consistently scaled 3:4 garment PNG generation for Chat previews and the Wardrobe
 - local Markdown memory for confirmed garment terminology and recent conversations
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
-The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. Those temporary picker files are sent to Gemini for garment analysis and standardized image generation, but are never copied into app storage. Only Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
+The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. A selected photo appears as a small, expandable, session-only attachment in Chat. That temporary picker file is sent to Gemini for garment analysis and standardized image generation, but is never copied into app storage. Only Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

@@ -4,7 +4,7 @@ import { rememberConversation, readMemoryContext, rememberGarmentAddition } from
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, generateCanonicalGarmentImage } from '@/agents/vision';
 import { requestImageObservationPlan, requestMuseReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, listWardrobeSections } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -17,23 +17,30 @@ type SelectedImage = { uri: string; mimeType: string | null };
 export async function coordinateImageObservation({
   museApiKey,
   geminiApiKey,
+  db,
   images,
   userMessage,
   onProgress,
 }: {
   museApiKey: string;
   geminiApiKey: string;
+  db: SQLiteDatabase;
   images: SelectedImage[];
   userMessage: string;
   onProgress?: (text: string) => void;
 }) {
   onProgress?.('Understanding your request…');
-  const plan = await requestImageObservationPlan(museApiKey, userMessage);
+  const [plan, sections] = await Promise.all([
+    requestImageObservationPlan(museApiKey, userMessage),
+    listWardrobeSections(db),
+  ]);
+  if (!sections.length) throw new Error('Create a wardrobe section before adding a garment.');
   onProgress?.('Analyzing garment…');
   const analysis = await analyzeGarmentImages(geminiApiKey, images, {
     focusGarments: plan.focusGarments,
     intent: plan.intent,
     userMessage,
+    availableSections: sections.map((section) => section.name),
   });
 
   const garments = [];
@@ -42,9 +49,12 @@ export async function coordinateImageObservation({
     const sourceImage = images[Math.min(garment.sourceImageIndex, images.length - 1)];
     const generatedJpeg = await generateCanonicalGarmentImage(geminiApiKey, sourceImage, garment);
     const transparentPng = removeFlatBackgroundToPng(generatedJpeg);
+    const suggestedSection = sections.find((section) => section.name.toLocaleLowerCase() === garment.suggestedSectionName.toLocaleLowerCase()) ?? sections[0];
     garments.push({
       ...garment,
       canonicalImageUri: saveGeneratedGarmentPreview(transparentPng, `preview-${Date.now()}-${index}`),
+      suggestedSectionId: suggestedSection.id,
+      suggestedSectionName: suggestedSection.name,
     });
   }
 

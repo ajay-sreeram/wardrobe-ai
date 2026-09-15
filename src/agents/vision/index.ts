@@ -17,6 +17,7 @@ export const garmentObservationSchema = z.object({
   tags: z.array(z.string().min(1)).max(8),
   confidence: z.number().min(0).max(1),
   sourceImageIndex: z.number().int().nonnegative(),
+  suggestedSectionName: z.string().min(1),
 });
 
 export type GarmentObservation = z.infer<typeof garmentObservationSchema>;
@@ -54,8 +55,9 @@ const outputJsonSchema = {
           tags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           sourceImageIndex: { type: 'integer', minimum: 0, description: 'Zero-based index of the photo that shows this garment most clearly.' },
+          suggestedSectionName: { type: 'string', description: 'Best matching name from the supplied wardrobe sections.' },
         },
-        required: ['name', 'category', 'description', 'colors', 'tags', 'confidence', 'sourceImageIndex'],
+        required: ['name', 'category', 'description', 'colors', 'tags', 'confidence', 'sourceImageIndex', 'suggestedSectionName'],
       },
       maxItems: 12,
     },
@@ -65,7 +67,7 @@ const outputJsonSchema = {
 } as const;
 
 type VisionImage = { uri: string; mimeType: string | null };
-type VisionContext = { focusGarments: string[]; intent: string; userMessage: string };
+type VisionContext = { focusGarments: string[]; intent: string; userMessage: string; availableSections: string[] };
 
 export class VisionRequestError extends Error {
   constructor(message: string) {
@@ -121,6 +123,7 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
 User message: ${context.userMessage || '(no message)'}
 Coordinator intent: ${context.intent}
 ${context.focusGarments.length ? `Strict selection: Return ONLY garments matching these user-requested types: ${context.focusGarments.join(', ')}. Treat every other visible garment as background context and do not include it in garments.` : 'Selection: The user did not identify a specific garment type, so return all clearly visible garments.'}
+Suggest the best logical wardrobe section for each garment using exactly one of these existing section names: ${context.availableSections.join(', ')}. This is only a suggestion; the user confirms the final wardrobe change.
 Return only one JSON object matching this schema, with no commentary or Markdown:
 ${JSON.stringify(outputJsonSchema)}`,
           },

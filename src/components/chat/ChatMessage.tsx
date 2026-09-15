@@ -11,7 +11,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 export function ChatMessage({ message }: { message: ChatMessageModel }) {
   if (message.kind === 'status') return <AgentProgress text={message.text} />;
   if (message.kind === 'confirmation') return <ConfirmationCard {...message} />;
-  if (message.kind === 'image') return <ExpandableImage style={styles.imageBubble} uri={message.uri} />;
+  if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'error') {
     return (
       <View style={styles.error}>
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   user: { alignSelf: 'flex-end', backgroundColor: colors.moss, borderBottomRightRadius: 5 },
   assistant: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 5 },
   userText: { color: colors.surface },
-  imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 290, maxWidth: 320, overflow: 'hidden', width: '82%' },
+  imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
   error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#F6E3DF', borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   errorText: { color: colors.danger, flex: 1 },
 });

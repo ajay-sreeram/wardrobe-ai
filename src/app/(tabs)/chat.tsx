@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
 
 import { coordinateImageObservation, coordinateTextConversation } from '@/agents/coordinator';
 import { AgentProgress } from '@/components/chat/AgentProgress';
@@ -17,6 +18,7 @@ import { useChatStore } from '@/state/chat';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
+  const db = useSQLiteContext();
   const { addAssistantMessage, addError, addMessages, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const [sending, setSending] = useState(false);
@@ -60,7 +62,15 @@ export default function ChatScreen() {
     setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
     try {
-      sendMessage([]);
+      const imageMessages: ChatMessageModel[] = submittedImages.map((image) => ({
+        id: image.id,
+        kind: 'image',
+        role: 'user',
+        uri: image.uri,
+        width: image.width,
+        height: image.height,
+      }));
+      sendMessage(imageMessages);
 
       if (submittedImages.length) {
         if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
@@ -71,6 +81,7 @@ export default function ChatScreen() {
         const analysis = await coordinateImageObservation({
           museApiKey: developmentEnv.museApiKey,
           geminiApiKey: developmentEnv.geminiApiKey,
+          db,
           images: submittedImages.map((image) => ({ uri: image.uri, mimeType: image.mimeType })),
           userMessage: submittedText,
           onProgress: setProgressText,
@@ -90,6 +101,8 @@ export default function ChatScreen() {
           canonicalImageUri: garment.canonicalImageUri,
           userMessage: submittedText,
           memoryFacts: analysis.memoryFacts,
+          suggestedSectionId: garment.suggestedSectionId,
+          suggestedSectionName: garment.suggestedSectionName,
           tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
         })));
         if (analysis.note) addAssistantMessage(analysis.note);

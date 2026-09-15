@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
 import { insertGarment } from '@/database/repository';
+import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
 
 export const wardrobeAgentScope = {
   canMutateWardrobe: true,
@@ -13,12 +14,13 @@ const addGarmentRequestSchema = z.object({
   sectionId: z.string().min(1),
   description: z.string().trim().min(1),
   tags: z.array(z.string().trim().min(1)).max(12),
-  sourceImageUri: z.string().optional(),
+  canonicalImageUri: z.string().min(1),
 });
 
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
   const garment = addGarmentRequestSchema.parse(request);
   const id = `garment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await insertGarment(db, { id, ...garment });
+  const canonicalImageUri = await persistCanonicalGarmentImage(garment.canonicalImageUri, id);
+  await insertGarment(db, { id, ...garment, canonicalImageUri });
   return id;
 }

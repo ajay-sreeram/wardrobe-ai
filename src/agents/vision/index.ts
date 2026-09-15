@@ -32,6 +32,8 @@ const interactionSchema = z.object({
     content: z.array(z.object({
       type: z.string(),
       text: z.string().optional(),
+      data: z.string().optional(),
+      mime_type: z.string().optional(),
     })).optional(),
   })),
 });
@@ -155,6 +157,68 @@ ${JSON.stringify(outputJsonSchema)}`,
     if (error instanceof SyntaxError) throw new VisionRequestError('Gemini returned an invalid garment analysis.');
     if (error instanceof Error && error.name === 'AbortError') throw new VisionRequestError('Gemini took too long to analyze the photos. Please try again.');
     throw new VisionRequestError('Could not reach Gemini. Check your connection and try again.');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function generateCanonicalGarmentImage(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000);
+
+  try {
+    const visibleColors = [...garment.colors, ...garment.tags].join(' ').toLowerCase();
+    const chromaBackground = visibleColors.includes('green') || visibleColors.includes('lime') ? '#FF00FF' : '#00FF00';
+    const response = await fetch(`${providerConfig.gemini.baseUrl}/interactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        model: providerConfig.gemini.model,
+        store: false,
+        input: [
+          {
+            type: 'text',
+            text: `Create a premium standardized digital-wardrobe image of only this garment: ${garment.name}. ${garment.description}
+Use the attached user photo strictly as the identity reference. Preserve the exact color, pattern, cut, collar, sleeves, fasteners, texture, and distinctive details. Remove the person, body, other garments, phone, room, hanger, mannequin, labels, and all background objects. Do not redesign or beautify the garment into a different product.
+Output one complete, uncropped garment against a perfectly flat, single-color ${chromaBackground} background for clean removal. The background must be exactly uniform edge to edge, with no gradient, texture, floor, or shadow. Center the garment upright on a 3:4 portrait canvas. Keep a consistent apparent scale: the garment's longest dimension must occupy about 82% of the canvas, with roughly 9% clear margin on every outer side. Use the same visual scale and margins for every wardrobe asset. No text, border, scenery, or props.`,
+          },
+          {
+            type: 'image',
+            data: await readChatImageBase64(sourceImage.uri),
+            mime_type: inferMimeType(sourceImage),
+          },
+        ],
+        generation_config: {
+          thinking_level: 'minimal',
+          image_config: {
+            aspect_ratio: '3:4',
+            image_size: '1K',
+          },
+        },
+        response_modalities: ['image'],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) throw new VisionRequestError('Gemini rejected GEMINI_API_KEY in local-secrets/.env.');
+      if (response.status === 429) throw new VisionRequestError('Gemini is rate-limited while generating the wardrobe image. Please try again shortly.');
+      throw new VisionRequestError(`Gemini wardrobe image generation failed (${response.status}).`);
+    }
+
+    const interaction = interactionSchema.safeParse(await response.json());
+    if (!interaction.success) throw new VisionRequestError('Gemini returned an unexpected image response.');
+    const image = interaction.data.steps.flatMap((step) => step.type === 'model_output' ? step.content ?? [] : [])
+      .find((content) => content.type === 'image' && content.data);
+    if (!image?.data) throw new VisionRequestError('Gemini did not return a wardrobe image.');
+    return image.data;
+  } catch (error) {
+    if (error instanceof VisionRequestError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') throw new VisionRequestError('Gemini took too long to generate the wardrobe image. Please try again.');
+    throw new VisionRequestError('Could not generate the wardrobe image. Check your connection and try again.');
   } finally {
     clearTimeout(timeout);
   }

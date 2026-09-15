@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -18,9 +19,15 @@ export function GarmentTile({ garment, compact = false }: { garment: Garment; co
   const swatch = swatches[garment.name.length % swatches.length];
   return (
     <Pressable accessibilityLabel={garment.name} style={[styles.card, compact && styles.compactCard]}>
-      <View style={[styles.image, compact && styles.compactImage, { backgroundColor: swatch }]}>
-        <View style={styles.halo} />
-        <Ionicons color="rgba(255,255,255,0.92)" name={garmentIcon(garment.tags)} size={compact ? 26 : 48} />
+      <View style={[styles.image, compact && styles.compactImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
+        {garment.canonicalImage ? (
+          <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
+        ) : (
+          <>
+            <View style={styles.halo} />
+            <Ionicons color="rgba(255,255,255,0.92)" name={garmentIcon(garment.tags)} size={compact ? 26 : 48} />
+          </>
+        )}
       </View>
       {!compact ? (
         <View style={styles.copy}>
@@ -39,6 +46,7 @@ const styles = StyleSheet.create({
   compactCard: { borderRadius: radius.sm, width: 58 },
   image: { alignItems: 'center', height: 158, justifyContent: 'center', overflow: 'hidden' },
   compactImage: { height: 58 },
+  canonicalImage: { height: '100%', width: '100%' },
   halo: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 80, height: 112, position: 'absolute', width: 112 },
   copy: { gap: 4, minHeight: 76, padding: spacing.sm },
   meta: { color: colors.inkMuted },

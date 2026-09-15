@@ -15,7 +15,6 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { developmentEnv } from '@/config/env';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
-import { persistChatImage } from '@/storage/chatImages';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
@@ -62,15 +61,7 @@ export default function ChatScreen() {
     setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
     try {
-      const imageMessages = await Promise.all(submittedImages.map(async (image) => ({
-        id: image.id,
-        kind: 'image' as const,
-        role: 'user' as const,
-        uri: await persistChatImage(image),
-        width: image.width,
-        height: image.height,
-      })));
-      sendMessage(imageMessages);
+      sendMessage([]);
 
       if (submittedImages.length) {
         if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
@@ -81,7 +72,7 @@ export default function ChatScreen() {
         const analysis = await coordinateImageObservation({
           museApiKey: developmentEnv.museApiKey,
           geminiApiKey: developmentEnv.geminiApiKey,
-          images: imageMessages.map((image, index) => ({ uri: image.uri, mimeType: submittedImages[index].mimeType })),
+          images: submittedImages.map((image) => ({ uri: image.uri, mimeType: image.mimeType })),
           userMessage: submittedText,
           onProgress: setProgressText,
         });
@@ -97,7 +88,7 @@ export default function ChatScreen() {
           title: analysis.garments.length === 1 ? 'I found one garment' : `Garment ${index + 1} of ${analysis.garments.length}`,
           description: garment.description,
           garmentName: garment.name,
-          sourceImageUri: imageMessages[Math.min(garment.sourceImageIndex, imageMessages.length - 1)]?.uri,
+          canonicalImageUri: garment.canonicalImageUri,
           tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
         })));
         if (analysis.note) addAssistantMessage(analysis.note);

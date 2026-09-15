@@ -8,10 +8,11 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { getWardrobeSectionOptions, type WardrobeSectionOption } from '@/database/repository';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-export function ConfirmationCard({ title, description, garmentName, tags, sourceImageUri }: { title: string; description: string; garmentName: string; tags: string[]; sourceImageUri?: string }) {
+export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string }) {
   const db = useSQLiteContext();
   const [choice, setChoice] = useState<string | null>(null);
   const [choosingSection, setChoosingSection] = useState(false);
@@ -34,7 +35,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, source
         sectionId: section.id,
         description,
         tags,
-        sourceImageUri,
+        canonicalImageUri,
       });
       setChoice(`Added to ${section.name}`);
     } catch {
@@ -57,10 +58,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, source
   }
   return (
     <Card style={styles.card}>
-      <View style={styles.preview}>
-        <View style={styles.previewHalo} />
-        <Ionicons color={colors.surface} name="shirt-outline" size={54} />
-      </View>
+      <ExpandableImage badge="Generated wardrobe image" style={styles.preview} uri={canonicalImageUri} />
       <AppText variant="caption" style={styles.eyebrow}>Review suggested garment</AppText>
       <AppText variant="heading">{title}</AppText>
       <AppText style={styles.muted}>{description}</AppText>
@@ -97,8 +95,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, source
 
 const styles = StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
-  preview: { alignItems: 'center', backgroundColor: '#AAB9C7', borderRadius: radius.sm, height: 146, justifyContent: 'center', overflow: 'hidden' },
-  previewHalo: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 100, height: 150, position: 'absolute', width: 150 },
+  preview: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220, justifyContent: 'center', overflow: 'hidden' },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   muted: { color: colors.inkMuted },
   nameRow: { gap: spacing.sm, paddingVertical: spacing.xs },

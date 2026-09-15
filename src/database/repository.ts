@@ -9,7 +9,7 @@ export type NewGarment = {
   sectionId: string;
   description: string;
   tags: string[];
-  sourceImageUri?: string;
+  canonicalImageUri: string;
 };
 
 type GarmentRow = {
@@ -62,26 +62,25 @@ export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
     await db.runAsync(
       `INSERT INTO garments
         (id, name, section_id, description, tags, canonical_image, created_at, updated_at, wear_count, last_worn_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, NULL)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
       garment.id,
       garment.name,
       garment.sectionId,
       garment.description,
       JSON.stringify(garment.tags),
+      garment.canonicalImageUri,
       now,
       now,
     );
 
-    if (garment.sourceImageUri) {
-      await db.runAsync(
-        'INSERT INTO garment_images (id, garment_id, image_path, image_type, created_at) VALUES (?, ?, ?, ?, ?)',
-        `image-${garment.id}`,
-        garment.id,
-        garment.sourceImageUri,
-        'observation',
-        now,
-      );
-    }
+    await db.runAsync(
+      'INSERT INTO garment_images (id, garment_id, image_path, image_type, created_at) VALUES (?, ?, ?, ?, ?)',
+      `image-${garment.id}`,
+      garment.id,
+      garment.canonicalImageUri,
+      'canonical',
+      now,
+    );
   });
 }
 

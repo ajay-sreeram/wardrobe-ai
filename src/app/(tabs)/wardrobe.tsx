@@ -192,14 +192,14 @@ export default function WardrobeScreen() {
               </Pressable>
             ) : null}
           </View>
-          <ScrollView contentContainerStyle={styles.sortRail} horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={styles.sortRail} horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroller}>
             {gridSorts.map((sort) => <Chip key={sort.id} label={sort.label} onPress={() => setGridSort(sort.id)} selected={gridSort === sort.id} />)}
           </ScrollView>
           <AppText variant="caption" style={styles.resultCount}>{query.trim() ? `${filteredGarments.length} of ${garmentCount} pieces` : `${garmentCount} pieces`}</AppText>
           <FlashList
             contentContainerStyle={styles.gridContent}
             data={filteredGarments}
-            key={`wardrobe-grid-${gridColumns}`}
+            key={`wardrobe-grid-${gridColumns}-${gridSort}`}
             keyExtractor={(garment) => garment.id}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
@@ -252,6 +252,7 @@ const styles = StyleSheet.create({
   gridView: { flex: 1 },
   searchBox: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, minHeight: 46, paddingHorizontal: spacing.md },
   searchInput: { color: colors.ink, flex: 1, fontSize: 16, minHeight: 44 },
+  sortScroller: { flexGrow: 0, flexShrink: 0, height: 44 },
   sortRail: { gap: spacing.xs, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   resultCount: { color: colors.inkMuted, marginHorizontal: spacing.lg, paddingBottom: spacing.xs, paddingTop: spacing.sm },
   gridContent: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md },

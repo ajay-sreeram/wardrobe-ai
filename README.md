@@ -29,6 +29,7 @@ The app currently includes:
 - tap-to-open garment cards with long-press horizontal drag reordering
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - all-pieces sorting for wardrobe order, least worn, not worn recently, newest, and garment name
+- compact sort controls and reliable grid resets when changing an all-pieces sort order
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

@@ -25,16 +25,17 @@ export default function WardrobeScreen() {
   const garmentCount = sections.reduce((total, section) => total + section.garments.length, 0);
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <ScreenHeader eyebrow={`${garmentCount} pieces · 4 sections`} title="Wardrobe" />
+      <ScreenHeader eyebrow={`${garmentCount} pieces · ${sections.length} sections`} title="Wardrobe" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.intro}>
-          <View style={styles.introIcon}><Ionicons color={colors.clay} name="leaf-outline" size={22} /></View>
-          <View style={styles.flex}>
-            <AppText variant="label">Rediscover something</AppText>
-            <AppText variant="caption" style={styles.muted}>The forest green tee has been out of rotation for 23 days.</AppText>
+        {!garmentCount ? (
+          <View style={styles.intro}>
+            <View style={styles.introIcon}><Ionicons color={colors.clay} name="sparkles-outline" size={22} /></View>
+            <View style={styles.flex}>
+              <AppText variant="label">Your wardrobe is ready</AppText>
+              <AppText variant="caption" style={styles.muted}>Add your first garment from Chat and it will appear here.</AppText>
+            </View>
           </View>
-          <Ionicons color={colors.inkMuted} name="chevron-forward" size={18} />
-        </View>
+        ) : null}
 
         {sections.map((section) => (
           <View key={section.id} style={styles.section}>

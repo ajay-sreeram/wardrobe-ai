@@ -139,7 +139,11 @@ export default function ChatScreen() {
         return;
       }
 
-      addAssistantMessage(await coordinateTextConversation(developmentEnv.museApiKey, submittedText));
+      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText);
+      addMessages([
+        { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
+        ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),
+      ]);
     } catch (error) {
       addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');
     } finally {

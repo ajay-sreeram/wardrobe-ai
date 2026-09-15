@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { getActiveGarments, getWardrobeSectionOptions, insertGarment } from '@/database/repository';
+import { getActiveGarments, getWardrobeSectionOptions, getWardrobeSections, insertGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -29,6 +29,31 @@ export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<
 
 export async function listWardrobeSections(db: SQLiteDatabase) {
   return getWardrobeSectionOptions(db);
+}
+
+export type WardrobeCatalogItem = {
+  id: string;
+  name: string;
+  sectionName: string;
+  description: string | null;
+  tags: string[];
+  canonicalImage: string | null;
+  wearCount: number;
+  lastWornAt: string | null;
+};
+
+export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeCatalogItem[]> {
+  const sections = await getWardrobeSections(db);
+  return sections.flatMap((section) => section.garments.map((garment) => ({
+    id: garment.id,
+    name: garment.name,
+    sectionName: section.name,
+    description: garment.description,
+    tags: garment.tags,
+    canonicalImage: garment.canonicalImage,
+    wearCount: garment.wearCount,
+    lastWornAt: garment.lastWornAt,
+  })));
 }
 
 export type DuplicateCandidate = Garment & { canonicalImage: string };

@@ -3,8 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition } from '@/agents/memory';
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
-import { requestImageObservationPlan, requestMuseReply, requestNaturalGarmentPresentation } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, findPotentialDuplicateCandidates, listWardrobeSections } from '@/agents/wardrobe';
+import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
+import { addGarmentToWardrobe, findPotentialDuplicateCandidates, listWardrobeSections, readWardrobeCatalog } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -120,11 +120,18 @@ export async function coordinateImageObservation({
   };
 }
 
-export async function coordinateTextConversation(apiKey: string, userMessage: string) {
-  const memory = await readMemoryContext();
-  const reply = await requestMuseReply(apiKey, userMessage, memory);
-  await rememberConversation(userMessage, reply).catch(() => undefined);
-  return reply;
+export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string) {
+  const [memory, wardrobe] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db)]);
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe);
+  await rememberConversation(userMessage, reply.answer).catch(() => undefined);
+  const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
+  return {
+    text: reply.answer,
+    garments: reply.garmentIds.flatMap((id) => {
+      const garment = byId.get(id);
+      return garment ? [garment] : [];
+    }),
+  };
 }
 
 export async function coordinateGarmentAddition({

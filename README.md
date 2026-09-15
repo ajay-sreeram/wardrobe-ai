@@ -8,7 +8,7 @@ The app currently includes:
 
 - Chat, Wardrobe, and Timeline tabs
 - live text conversation through Muse
-- an on-device SQLite schema with development seed data
+- an on-device SQLite schema with four empty starter sections
 - on-device Markdown memory initialization
 - a small internal design system
 - strict TypeScript and Zod-validated domain boundaries
@@ -20,6 +20,7 @@ The app currently includes:
 - local Markdown memory for confirmed garment terminology and recent conversations
 - conservative duplicate detection against a small local shortlist of existing canonical garment images
 - Coordinator-written Chat copy, so raw Vision observations and confidence scores remain internal
+- agent-driven, read-only wardrobe questions with matching local garments rendered directly in Chat
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
@@ -28,6 +29,8 @@ The app never scans the photo gallery. It can see only images the user explicitl
 Before generating a new canonical image, the Wardrobe Agent shortlists at most two plausible existing garments using local metadata. Vision compares only those candidates and raises a duplicate review only for a conservative high-confidence match. Choosing “Use existing” avoids image generation and database duplication; choosing “Add as new” resumes canonical generation.
 
 Vision stays precise and structured internally, while Muse turns its findings into concise, direct wardrobe-assistant language before Chat renders them. A deterministic friendly fallback prevents specialist wording from leaking into the interface when that presentation pass is unavailable.
+
+For text conversations, the Wardrobe Agent supplies Muse with the current active SQLite catalog as read-only reference data. Muse can answer natural inventory questions such as counts, colors, garment types, sections, and what has not been worn recently, and can return exact garment IDs for rich Chat cards. Returned IDs are validated against SQLite before rendering; Muse cannot invent or mutate wardrobe records through this path.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

@@ -2,9 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 
 import { coordinateGarmentReorder } from '@/agents/coordinator';
 import { AppText } from '@/components/ui/AppText';
@@ -21,6 +21,7 @@ export default function WardrobeScreen() {
   const router = useRouter();
   const setDraft = useChatStore((state) => state.setDraft);
   const [sections, setSections] = useState<WardrobeSection[]>([]);
+  const [organizingSectionId, setOrganizingSectionId] = useState<string | null>(null);
 
   const loadSections = useCallback(async () => setSections(await getWardrobeSections(db)), [db]);
 
@@ -47,14 +48,15 @@ export default function WardrobeScreen() {
     }
   }
 
-  function renderGarment({ item, drag, isActive }: RenderItemParams<WardrobeSection['garments'][number]>) {
+  function renderGarment(sectionId: string, { item, drag, isActive }: RenderItemParams<WardrobeSection['garments'][number]>) {
     return (
       <ScaleDecorator>
         <GarmentTile
           active={isActive}
           garment={item}
+          organizing={organizingSectionId === sectionId}
           onLongPress={drag}
-          onPress={() => router.push({ pathname: '/garment/[id]', params: { id: item.id } })}
+          onPress={organizingSectionId ? undefined : () => router.push({ pathname: '/garment/[id]', params: { id: item.id } })}
         />
       </ScaleDecorator>
     );
@@ -63,7 +65,7 @@ export default function WardrobeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScreenHeader eyebrow={`${garmentCount} pieces · ${sections.length} sections`} title="Wardrobe" />
-      <NestableScrollContainer contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!garmentCount ? (
           <View style={styles.intro}>
             <View style={styles.introIcon}><Ionicons color={colors.clay} name="sparkles-outline" size={22} /></View>
@@ -74,21 +76,34 @@ export default function WardrobeScreen() {
           </View>
         ) : null}
 
-        {garmentCount ? <AppText variant="caption" style={styles.hint}>Tap a piece for details. Long press and drag to rearrange it.</AppText> : null}
+        {garmentCount ? (
+          <AppText variant="caption" style={[styles.hint, organizingSectionId && styles.organizingHint]}>
+            {organizingSectionId ? 'Organizing wardrobe · drag pieces into the order you want.' : 'Swipe to browse. Tap for details, or long press a piece to organize.'}
+          </AppText>
+        ) : null}
 
         {sections.map((section) => (
-          <View key={section.id} style={styles.section}>
-            <View style={styles.sectionHeader}>
+          <View key={section.id} style={[styles.section, organizingSectionId === section.id && styles.sectionOrganizing]}>
+            <View style={[styles.sectionHeader, organizingSectionId === section.id && styles.sectionHeaderOrganizing]}>
               <View>
-                <AppText variant="heading">{section.name}</AppText>
-                <AppText variant="caption" style={styles.muted}>{section.garments.length} pieces</AppText>
+                <View style={styles.sectionTitleRow}>
+                  {organizingSectionId === section.id ? <Ionicons color={colors.clay} name="reorder-three" size={22} /> : null}
+                  <AppText variant="heading">{section.name}</AppText>
+                </View>
+                <AppText variant="caption" style={styles.muted}>{organizingSectionId === section.id ? 'Drag handles are active' : `${section.garments.length} pieces`}</AppText>
               </View>
-              <Pressable accessibilityLabel={`Edit ${section.name}`} hitSlop={10} onPress={() => router.push({ pathname: '/section/[id]', params: { id: section.id } })}>
-                <Ionicons color={colors.inkMuted} name="ellipsis-horizontal" size={22} />
-              </Pressable>
+              {organizingSectionId === section.id ? (
+                <Pressable accessibilityLabel="Finish organizing" onPress={() => setOrganizingSectionId(null)} style={styles.doneButton}>
+                  <AppText variant="label" style={styles.doneText}>Done</AppText>
+                </Pressable>
+              ) : (
+                <Pressable accessibilityLabel={`Edit ${section.name}`} hitSlop={10} onPress={() => router.push({ pathname: '/section/[id]', params: { id: section.id } })}>
+                  <Ionicons color={colors.inkMuted} name="ellipsis-horizontal" size={22} />
+                </Pressable>
+              )}
             </View>
-            <NestableDraggableFlatList
-              activationDistance={8}
+            <DraggableFlatList
+              activationDistance={12}
               containerStyle={styles.railContainer}
               contentContainerStyle={styles.rail}
               data={section.garments}
@@ -100,14 +115,15 @@ export default function WardrobeScreen() {
                   <AppText variant="caption" style={styles.muted}>Add piece</AppText>
                 </Pressable>
               )}
+              onDragBegin={() => setOrganizingSectionId(section.id)}
               onDragEnd={({ data }) => finishGarmentDrag(section.id, data)}
-              renderItem={renderGarment}
+              renderItem={(params) => renderGarment(section.id, params)}
               showsHorizontalScrollIndicator={false}
             />
           </View>
         ))}
         <AppButton label="Create a section" onPress={() => router.push({ pathname: '/section/[id]', params: { id: 'new' } })} tone="secondary" style={styles.createSection} />
-      </NestableScrollContainer>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -120,8 +136,14 @@ const styles = StyleSheet.create({
   introIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   muted: { color: colors.inkMuted },
   hint: { color: colors.inkMuted, marginBottom: spacing.md, marginHorizontal: spacing.lg },
+  organizingHint: { backgroundColor: colors.claySoft, borderRadius: radius.sm, color: colors.clay, padding: spacing.sm },
   section: { gap: spacing.sm, marginBottom: spacing.xl },
+  sectionOrganizing: { backgroundColor: 'rgba(241,223,214,0.42)', borderColor: colors.clay, borderRadius: radius.md, borderWidth: 1, marginHorizontal: spacing.sm, paddingVertical: spacing.sm },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  sectionHeaderOrganizing: { paddingHorizontal: spacing.md },
+  sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  doneButton: { backgroundColor: colors.moss, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  doneText: { color: colors.surface },
   rail: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   railContainer: { height: 234 },
   addCard: { alignItems: 'center', borderColor: colors.line, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1.5, gap: spacing.xs, height: 234, justifyContent: 'center', width: 112 },

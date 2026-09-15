@@ -15,7 +15,7 @@ function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
   return 'shirt-outline';
 }
 
-export function GarmentTile({ garment, compact = false, active = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; active?: boolean; onPress?: () => void; onLongPress?: () => void }) {
+export function GarmentTile({ garment, compact = false, active = false, organizing = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; active?: boolean; organizing?: boolean; onPress?: () => void; onLongPress?: () => void }) {
   const swatch = swatches[garment.name.length % swatches.length];
   return (
     <Pressable
@@ -25,7 +25,7 @@ export function GarmentTile({ garment, compact = false, active = false, onPress,
       delayLongPress={350}
       onLongPress={onLongPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, compact && styles.compactCard, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
+      style={({ pressed }) => [styles.card, compact && styles.compactCard, organizing && styles.organizing, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
       <View style={[styles.image, compact && styles.compactImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
         {garment.canonicalImage ? (
           <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
@@ -35,6 +35,11 @@ export function GarmentTile({ garment, compact = false, active = false, onPress,
             <Ionicons color="rgba(255,255,255,0.92)" name={garmentIcon(garment.tags)} size={compact ? 26 : 48} />
           </>
         )}
+        {organizing && !compact ? (
+          <View style={styles.dragHandle}>
+            <Ionicons color={colors.surface} name="reorder-three" size={18} />
+          </View>
+        ) : null}
       </View>
       {!compact ? (
         <View style={styles.copy}>
@@ -59,4 +64,6 @@ const styles = StyleSheet.create({
   meta: { color: colors.inkMuted },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   active: { opacity: 0.92 },
+  organizing: { borderColor: colors.clay, borderWidth: 1.5 },
+  dragHandle: { alignItems: 'center', backgroundColor: colors.clay, borderRadius: 16, height: 30, justifyContent: 'center', position: 'absolute', right: spacing.xs, top: spacing.xs, width: 30 },
 });

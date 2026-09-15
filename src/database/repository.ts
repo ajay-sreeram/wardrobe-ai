@@ -12,6 +12,12 @@ export type NewGarment = {
   canonicalImageUri: string;
 };
 
+export type GarmentUpdate = {
+  name: string;
+  sectionId: string;
+  tags: string[];
+};
+
 type GarmentRow = {
   id: string;
   name: string;
@@ -57,6 +63,11 @@ export async function getActiveGarments(db: SQLiteDatabase): Promise<Garment[]> 
   return rows.map(mapGarment);
 }
 
+export async function getActiveGarment(db: SQLiteDatabase, garmentId: string): Promise<Garment | null> {
+  const row = await db.getFirstAsync<GarmentRow>('SELECT * FROM garments WHERE id = ? AND archived_at IS NULL', garmentId);
+  return row ? mapGarment(row) : null;
+}
+
 export async function getWardrobeSectionOptions(db: SQLiteDatabase): Promise<WardrobeSectionOption[]> {
   return db.getAllAsync<WardrobeSectionOption>('SELECT id, name FROM sections ORDER BY position');
 }
@@ -87,6 +98,31 @@ export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
       now,
     );
   });
+}
+
+export async function updateGarment(db: SQLiteDatabase, garmentId: string, update: GarmentUpdate) {
+  const result = await db.runAsync(
+    `UPDATE garments
+     SET name = ?, section_id = ?, tags = ?, updated_at = ?
+     WHERE id = ? AND archived_at IS NULL`,
+    update.name,
+    update.sectionId,
+    JSON.stringify(update.tags),
+    new Date().toISOString(),
+    garmentId,
+  );
+  if (!result.changes) throw new Error('Garment not found.');
+}
+
+export async function archiveGarment(db: SQLiteDatabase, garmentId: string) {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    'UPDATE garments SET archived_at = ?, updated_at = ? WHERE id = ? AND archived_at IS NULL',
+    now,
+    now,
+    garmentId,
+  );
+  if (!result.changes) throw new Error('Garment not found.');
 }
 
 export async function getWearTimeline(db: SQLiteDatabase): Promise<WearEntry[]> {

@@ -4,7 +4,7 @@ import { rememberConversation, readMemoryContext, rememberExistingGarmentReferen
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, findPotentialDuplicateCandidates, listWardrobeSections, readWardrobeCatalog } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, findPotentialDuplicateCandidates, listWardrobeSections, readWardrobeCatalog, updateWardrobeGarment } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -168,4 +168,12 @@ export async function coordinateGarmentAddition({
 
 export async function coordinateExistingGarmentReference(input: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {
   await rememberExistingGarmentReference(input).catch(() => undefined);
+}
+
+export async function coordinateGarmentUpdate(db: SQLiteDatabase, input: { garmentId: string; name: string; sectionId: string; tags: string[] }) {
+  return updateWardrobeGarment(db, input);
+}
+
+export async function coordinateGarmentArchive(db: SQLiteDatabase, garmentId: string) {
+  return archiveWardrobeGarment(db, garmentId);
 }

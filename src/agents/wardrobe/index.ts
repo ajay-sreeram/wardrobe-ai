@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { getActiveGarments, getWardrobeSectionOptions, getWardrobeSections, insertGarment } from '@/database/repository';
+import { archiveGarment, getActiveGarment, getActiveGarments, getWardrobeSectionOptions, getWardrobeSections, insertGarment, updateGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -19,6 +19,13 @@ const addGarmentRequestSchema = z.object({
   canonicalImageUri: z.string().min(1),
 });
 
+const updateGarmentRequestSchema = z.object({
+  garmentId: z.string().min(1),
+  name: z.string().trim().min(1).max(80),
+  sectionId: z.string().min(1),
+  tags: z.array(z.string().trim().min(1).max(40)).max(12),
+});
+
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
   const garment = addGarmentRequestSchema.parse(request);
   const id = `garment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -29,6 +36,22 @@ export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<
 
 export async function listWardrobeSections(db: SQLiteDatabase) {
   return getWardrobeSectionOptions(db);
+}
+
+export async function readGarment(db: SQLiteDatabase, garmentId: string) {
+  return getActiveGarment(db, garmentId);
+}
+
+export async function updateWardrobeGarment(db: SQLiteDatabase, request: z.input<typeof updateGarmentRequestSchema>) {
+  const update = updateGarmentRequestSchema.parse(request);
+  const section = await db.getFirstAsync<{ id: string }>('SELECT id FROM sections WHERE id = ?', update.sectionId);
+  if (!section) throw new Error('Choose a valid wardrobe section.');
+  await updateGarment(db, update.garmentId, update);
+}
+
+export async function archiveWardrobeGarment(db: SQLiteDatabase, garmentId: string) {
+  if (!garmentId.trim()) throw new Error('Garment ID is required.');
+  await archiveGarment(db, garmentId);
 }
 
 export type WardrobeCatalogItem = {

@@ -15,10 +15,17 @@ function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
   return 'shirt-outline';
 }
 
-export function GarmentTile({ garment, compact = false }: { garment: Garment; compact?: boolean }) {
+export function GarmentTile({ garment, compact = false, onLongPress }: { garment: Garment; compact?: boolean; onLongPress?: () => void }) {
   const swatch = swatches[garment.name.length % swatches.length];
   return (
-    <Pressable accessibilityLabel={garment.name} style={[styles.card, compact && styles.compactCard]}>
+    <Pressable
+      accessibilityHint={onLongPress ? 'Long press to view or edit this garment' : undefined}
+      accessibilityLabel={garment.name}
+      accessibilityRole={onLongPress ? 'button' : undefined}
+      delayLongPress={350}
+      onLongPress={onLongPress}
+      onPress={onLongPress}
+      style={({ pressed }) => [styles.card, compact && styles.compactCard, pressed && onLongPress && styles.pressed]}>
       <View style={[styles.image, compact && styles.compactImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
         {garment.canonicalImage ? (
           <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
@@ -50,4 +57,5 @@ const styles = StyleSheet.create({
   halo: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 80, height: 112, position: 'absolute', width: 112 },
   copy: { gap: 4, minHeight: 76, padding: spacing.sm },
   meta: { color: colors.inkMuted },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

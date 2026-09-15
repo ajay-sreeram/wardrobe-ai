@@ -7,6 +7,7 @@ export function Chip({ label, selected = false, onPress }: { label: string; sele
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityState={onPress ? { selected } : undefined}
       onPress={onPress}
       style={[styles.container, selected && styles.selected]}>
       <AppText variant="caption" style={selected ? styles.selectedText : styles.text}>

@@ -10,12 +10,23 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import { coordinateGarmentReorder } from '@/agents/coordinator';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
+import { Chip } from '@/components/ui/Chip';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { GarmentTile } from '@/components/wardrobe/GarmentTile';
 import { getWardrobeSections } from '@/database/repository';
 import type { WardrobeSection } from '@/models/wardrobe';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useChatStore } from '@/state/chat';
+
+type GridSort = 'wardrobe' | 'least-worn' | 'oldest-worn' | 'newest' | 'name';
+
+const gridSorts: { id: GridSort; label: string }[] = [
+  { id: 'wardrobe', label: 'Wardrobe order' },
+  { id: 'least-worn', label: 'Least worn' },
+  { id: 'oldest-worn', label: 'Not worn recently' },
+  { id: 'newest', label: 'Newest' },
+  { id: 'name', label: 'A–Z' },
+];
 
 export default function WardrobeScreen() {
   const db = useSQLiteContext();
@@ -26,6 +37,7 @@ export default function WardrobeScreen() {
   const [organizingSectionId, setOrganizingSectionId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'sections' | 'grid'>('sections');
   const [query, setQuery] = useState('');
+  const [gridSort, setGridSort] = useState<GridSort>('wardrobe');
 
   const loadSections = useCallback(async () => setSections(await getWardrobeSections(db)), [db]);
 
@@ -39,12 +51,22 @@ export default function WardrobeScreen() {
   const allGarments = useMemo(() => sections.flatMap((section) => section.garments), [sections]);
   const filteredGarments = useMemo(() => {
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    if (!terms.length) return allGarments;
-    return allGarments.filter((garment) => {
+    const matching = !terms.length ? allGarments : allGarments.filter((garment) => {
       const searchable = [garment.name, garment.description ?? '', ...garment.tags].join(' ').toLocaleLowerCase();
       return terms.every((term) => searchable.includes(term));
     });
-  }, [allGarments, query]);
+    if (gridSort === 'wardrobe') return matching;
+    return [...matching].sort((left, right) => {
+      if (gridSort === 'least-worn') return left.wearCount - right.wearCount || (left.lastWornAt ?? '').localeCompare(right.lastWornAt ?? '') || left.name.localeCompare(right.name);
+      if (gridSort === 'oldest-worn') {
+        if (!left.lastWornAt && right.lastWornAt) return -1;
+        if (left.lastWornAt && !right.lastWornAt) return 1;
+        return (left.lastWornAt ?? '').localeCompare(right.lastWornAt ?? '') || left.name.localeCompare(right.name);
+      }
+      if (gridSort === 'newest') return right.createdAt.localeCompare(left.createdAt) || left.name.localeCompare(right.name);
+      return left.name.localeCompare(right.name);
+    });
+  }, [allGarments, gridSort, query]);
   const gridColumns = Math.max(2, Math.min(5, Math.floor((width - spacing.lg * 2) / 105)));
 
   function addToSection(sectionName: string) {
@@ -170,6 +192,9 @@ export default function WardrobeScreen() {
               </Pressable>
             ) : null}
           </View>
+          <ScrollView contentContainerStyle={styles.sortRail} horizontal showsHorizontalScrollIndicator={false}>
+            {gridSorts.map((sort) => <Chip key={sort.id} label={sort.label} onPress={() => setGridSort(sort.id)} selected={gridSort === sort.id} />)}
+          </ScrollView>
           <AppText variant="caption" style={styles.resultCount}>{query.trim() ? `${filteredGarments.length} of ${garmentCount} pieces` : `${garmentCount} pieces`}</AppText>
           <FlashList
             contentContainerStyle={styles.gridContent}
@@ -227,6 +252,7 @@ const styles = StyleSheet.create({
   gridView: { flex: 1 },
   searchBox: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, minHeight: 46, paddingHorizontal: spacing.md },
   searchInput: { color: colors.ink, flex: 1, fontSize: 16, minHeight: 44 },
+  sortRail: { gap: spacing.xs, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   resultCount: { color: colors.inkMuted, marginHorizontal: spacing.lg, paddingBottom: spacing.xs, paddingTop: spacing.sm },
   gridContent: { paddingBottom: spacing.xl, paddingHorizontal: spacing.md },
   gridItem: { flex: 1, padding: spacing.xs },

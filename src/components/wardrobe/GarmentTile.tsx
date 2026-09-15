@@ -7,6 +7,12 @@ import type { Garment } from '@/models/wardrobe';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 const swatches = ['#BAC9D8', '#D8CAB6', '#454C50', '#63756A', '#E8E0CE', '#C4B09B'];
+const shortDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' });
+
+function gridWearSummary(garment: Garment) {
+  if (!garment.lastWornAt) return 'Never worn';
+  return `${garment.wearCount}× · ${shortDateFormatter.format(new Date(`${garment.lastWornAt}T12:00:00`))}`;
+}
 
 function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
   if (tags.includes('trousers') || tags.includes('denim')) return 'accessibility-outline';
@@ -45,7 +51,7 @@ export function GarmentTile({ garment, compact = false, grid = false, active = f
         <View style={[styles.copy, grid && styles.gridCopy]}>
           <AppText numberOfLines={2} variant="label">{garment.name}</AppText>
           <AppText variant="caption" style={styles.meta}>
-            {garment.lastWornAt ? `Worn ${garment.wearCount}×` : 'Not worn yet'}
+            {grid ? gridWearSummary(garment) : garment.lastWornAt ? `Worn ${garment.wearCount}×` : 'Not worn yet'}
           </AppText>
         </View>
       ) : null}

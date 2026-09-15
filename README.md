@@ -28,6 +28,7 @@ The app currently includes:
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
+- switchable Timeline diary and month-calendar views with outfit previews on logged days
 - pending outfit context across Chat follow-ups and combined add-plus-log handling for worn photo uploads
 - outfit-pairing history and explicit rationale/preferences supplied to Muse for grounded recommendations
 

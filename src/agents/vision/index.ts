@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { providerConfig } from '@/config/providers';
+import { fetchWithRetry } from '@/network/fetchWithRetry';
 import { readChatImageBase64 } from '@/storage/chatImageData';
 import type { DuplicateCandidate } from '@/agents/wardrobe';
 
@@ -99,9 +100,6 @@ function parseJsonObject(text: string) {
 }
 
 export async function analyzeGarmentImages(apiKey: string, images: VisionImage[], context: VisionContext) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60_000);
-
   try {
     const encodedImages = await Promise.all(images.map(async (image) => ({
       type: 'image',
@@ -114,7 +112,7 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
       throw new VisionRequestError('Those photos are too large to analyze together. Please send fewer photos at a time.');
     }
 
-    const response = await fetch(`${providerConfig.gemini.baseUrl}/interactions`, {
+    const response = await fetchWithRetry(`${providerConfig.gemini.baseUrl}/interactions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -146,14 +144,14 @@ ${JSON.stringify(outputJsonSchema)}`,
         },
         response_format: { type: 'text' },
       }),
-      signal: controller.signal,
-    });
+    }, 60_000);
 
     if (!response.ok) {
       if (response.status === 400) throw new VisionRequestError('Gemini could not analyze that image format. Try a JPEG or PNG.');
       if (response.status === 401 || response.status === 403) throw new VisionRequestError('Gemini rejected GEMINI_API_KEY in local-secrets/.env.');
-      if (response.status === 429) throw new VisionRequestError('Gemini is rate-limited right now. Please try again shortly.');
-      throw new VisionRequestError(`Gemini image analysis failed (${response.status}).`);
+      if (response.status === 429) throw new VisionRequestError('Gemini is busy after three attempts. Please try again shortly.');
+      if (response.status >= 500) throw new VisionRequestError('Gemini image analysis is temporarily unavailable after three attempts. Please try again later.');
+      throw new VisionRequestError(`Gemini could not analyze the garment (${response.status}).`);
     }
 
     const interaction = interactionSchema.safeParse(await response.json());
@@ -170,20 +168,15 @@ ${JSON.stringify(outputJsonSchema)}`,
     if (error instanceof VisionRequestError) throw error;
     if (error instanceof SyntaxError) throw new VisionRequestError('Gemini returned an invalid garment analysis.');
     if (error instanceof Error && error.name === 'AbortError') throw new VisionRequestError('Gemini took too long to analyze the photos. Please try again.');
-    throw new VisionRequestError('Could not reach Gemini. Check your connection and try again.');
-  } finally {
-    clearTimeout(timeout);
+    throw new VisionRequestError('Could not reach Gemini after three attempts. Check your connection and try again.');
   }
 }
 
 export async function generateCanonicalGarmentImage(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
-
   try {
     const visibleColors = [...garment.colors, ...garment.tags].join(' ').toLowerCase();
     const chromaBackground = visibleColors.includes('green') || visibleColors.includes('lime') ? '#FF00FF' : '#00FF00';
-    const response = await fetch(`${providerConfig.gemini.baseUrl}/interactions`, {
+    const response = await fetchWithRetry(`${providerConfig.gemini.baseUrl}/interactions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,13 +207,13 @@ Output one complete, uncropped garment against a perfectly flat, single-color ${
         },
         response_modalities: ['image'],
       }),
-      signal: controller.signal,
-    });
+    }, 90_000);
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) throw new VisionRequestError('Gemini rejected GEMINI_API_KEY in local-secrets/.env.');
-      if (response.status === 429) throw new VisionRequestError('Gemini is rate-limited while generating the wardrobe image. Please try again shortly.');
-      throw new VisionRequestError(`Gemini wardrobe image generation failed (${response.status}).`);
+      if (response.status === 429) throw new VisionRequestError('Gemini is busy after three image-generation attempts. Please try again shortly.');
+      if (response.status >= 500) throw new VisionRequestError('Gemini image generation is temporarily unavailable after three attempts. Please try again later.');
+      throw new VisionRequestError(`Gemini could not generate the wardrobe image (${response.status}).`);
     }
 
     const interaction = interactionSchema.safeParse(await response.json());
@@ -232,23 +225,18 @@ Output one complete, uncropped garment against a perfectly flat, single-color ${
   } catch (error) {
     if (error instanceof VisionRequestError) throw error;
     if (error instanceof Error && error.name === 'AbortError') throw new VisionRequestError('Gemini took too long to generate the wardrobe image. Please try again.');
-    throw new VisionRequestError('Could not generate the wardrobe image. Check your connection and try again.');
-  } finally {
-    clearTimeout(timeout);
+    throw new VisionRequestError('Could not generate the wardrobe image after three attempts. Check your connection and try again.');
   }
 }
 
 export async function compareGarmentAgainstCandidates(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation, candidates: DuplicateCandidate[]) {
   if (!candidates.length) return null;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60_000);
-
   try {
     const candidateInputs = await Promise.all(candidates.map(async (candidate) => [
       { type: 'text', text: `Candidate ID: ${candidate.id}\nName: ${candidate.name}\nDescription: ${candidate.description ?? ''}\nTags: ${candidate.tags.join(', ')}` },
       { type: 'image', data: await readChatImageBase64(candidate.canonicalImage), mime_type: 'image/png' },
     ]));
-    const response = await fetch(`${providerConfig.gemini.baseUrl}/interactions`, {
+    const response = await fetchWithRetry(`${providerConfig.gemini.baseUrl}/interactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
@@ -266,8 +254,7 @@ export async function compareGarmentAgainstCandidates(apiKey: string, sourceImag
         generation_config: { max_output_tokens: 1024, thinking_level: 'minimal' },
         response_format: { type: 'text' },
       }),
-      signal: controller.signal,
-    });
+    }, 60_000);
 
     if (!response.ok) return null;
     const interaction = interactionSchema.safeParse(await response.json());
@@ -282,7 +269,5 @@ export async function compareGarmentAgainstCandidates(apiKey: string, sourceImag
     return { candidate, confidence: result.data.confidence, reason: result.data.reason };
   } catch {
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }

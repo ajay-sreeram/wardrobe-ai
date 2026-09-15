@@ -33,6 +33,7 @@ The app currently includes:
 - safe on-device Chat history across restarts, without retaining user-uploaded photos or stale confirmation cards
 - bounded Muse context: 12 recent messages plus a multi-step, read-only query loop over local wardrobe and Timeline data
 - on-demand memory search plus LLM-managed durable fact additions, corrections, and explicit forgetting
+- three-attempt transient API recovery, scoped fallback messages, and device-local relative-date context
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

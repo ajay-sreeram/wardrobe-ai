@@ -93,7 +93,7 @@ export default function ChatScreen() {
         });
 
         if (!analysis.garments.length) {
-          addAssistantMessage(analysis.note || 'I could not identify a garment clearly in those photos. Try a closer or better-lit photo.');
+          addAssistantMessage(analysis.note || 'I could not find the requested garment clearly enough. Try one closer, well-lit photo with the whole garment in frame.');
           return;
         }
 

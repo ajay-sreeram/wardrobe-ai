@@ -22,9 +22,13 @@ function fallbackDuplicateReason(existingGarmentName: string) {
   return `Its color, shape, and details look close to your ${existingGarmentName}.`;
 }
 
-function localDateString() {
+function localDateContext() {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return {
+    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'device local time',
+    weekday: now.toLocaleDateString('en-US', { weekday: 'long' }),
+  };
 }
 
 function recentConversationContext(messages: ChatMessage[]) {
@@ -62,7 +66,7 @@ export async function coordinateImageObservation({
   onProgress?: (text: string) => void;
 }) {
   onProgress?.('Understanding your request…');
-  const localDate = localDateString();
+  const localDate = localDateContext();
   const [plan, sections] = await Promise.all([
     requestImageObservationPlan(museApiKey, userMessage, localDate),
     listWardrobeSections(db),
@@ -142,7 +146,7 @@ export async function coordinateImageObservation({
 
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
   const [memory, wardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateString(), recentConversationContext(messages));
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages));
   await forgetExplicitWardrobeFacts(reply.forgottenMemoryFacts).catch(() => undefined);
   await Promise.all([
     rememberConversation(userMessage, reply.answer),

@@ -30,6 +30,9 @@ The app currently includes:
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - all-pieces sorting for wardrobe order, least worn, not worn recently, newest, and garment name
 - compact sort controls and reliable grid resets when changing an all-pieces sort order
+- safe on-device Chat history across restarts, without retaining user-uploaded photos or stale confirmation cards
+- bounded Muse context: 12 recent messages plus a multi-step, read-only query loop over local wardrobe and Timeline data
+- on-demand memory search plus LLM-managed durable fact additions, corrections, and explicit forgetting
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
+import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
@@ -28,7 +28,7 @@ function localDateString() {
 }
 
 function recentConversationContext(messages: ChatMessage[]) {
-  return messages.slice(-16).flatMap((message) => {
+  const contextEntries = messages.flatMap((message) => {
     if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
     if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
     if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
@@ -36,7 +36,8 @@ function recentConversationContext(messages: ChatMessage[]) {
     if (message.kind === 'action_confirmation') return [`Pending local change awaiting confirmation: ${message.description}`];
     if (message.kind === 'action_status') return [`Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
     return [];
-  }).join('\n');
+  });
+  return contextEntries.slice(-12).join('\n').slice(-6_000);
 }
 
 export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
@@ -142,6 +143,7 @@ export async function coordinateImageObservation({
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
   const [memory, wardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
   const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, sections, wearHistory, localDateString(), recentConversationContext(messages));
+  await forgetExplicitWardrobeFacts(reply.forgottenMemoryFacts).catch(() => undefined);
   await Promise.all([
     rememberConversation(userMessage, reply.answer),
     rememberExplicitWardrobeFacts(reply.memoryFacts),

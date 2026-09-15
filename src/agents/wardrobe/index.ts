@@ -183,9 +183,9 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
   })));
 }
 
-export async function readWardrobeWearHistory(db: SQLiteDatabase, limit = 40): Promise<WardrobeWearHistoryItem[]> {
+export async function readWardrobeWearHistory(db: SQLiteDatabase, limit?: number): Promise<WardrobeWearHistoryItem[]> {
   const timeline = await getWearTimeline(db);
-  return timeline.slice(0, limit).map((entry) => ({
+  return (limit ? timeline.slice(0, limit) : timeline).map((entry) => ({
     id: entry.id,
     wornAt: entry.wornAt,
     context: entry.note,

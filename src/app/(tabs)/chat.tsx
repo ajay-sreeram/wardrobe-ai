@@ -20,12 +20,16 @@ import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
   const db = useSQLiteContext();
-  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [progressText, setProgressText] = useState('Thinking…');
-  const canSend = Boolean(draft.trim() || pendingImages.length) && !sending;
+  const canSend = historyReady && Boolean(draft.trim() || pendingImages.length) && !sending;
+
+  useEffect(() => {
+    if (!historyReady) void hydrateHistory();
+  }, [historyReady, hydrateHistory]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -58,7 +62,7 @@ export default function ChatScreen() {
   }
 
   async function submit(submittedText: string, submittedImages: PendingChatImage[]) {
-    if (sendingRef.current || (!submittedText && !submittedImages.length)) return;
+    if (!historyReady || sendingRef.current || (!submittedText && !submittedImages.length)) return;
     sendingRef.current = true;
     setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
@@ -186,7 +190,7 @@ export default function ChatScreen() {
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
-          ListFooterComponent={messages.length === 1 ? <StarterActions disabled={sending} onSelect={handleStarter} /> : null}
+          ListFooterComponent={messages.length === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} /> : null}
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} />}
         />
@@ -211,7 +215,7 @@ export default function ChatScreen() {
             </View>
           ) : null}
           <View style={styles.composer}>
-            <Pressable accessibilityLabel="Attach garment photo" disabled={pendingImages.length >= 4 || sending} hitSlop={8} onPress={chooseImages} style={styles.attach}>
+            <Pressable accessibilityLabel="Attach garment photo" disabled={!historyReady || pendingImages.length >= 4 || sending} hitSlop={8} onPress={chooseImages} style={styles.attach}>
               <Ionicons color={colors.moss} name="add" size={24} />
             </Pressable>
             <TextInput

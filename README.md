@@ -23,6 +23,7 @@ The app currently includes:
 - agent-driven, read-only wardrobe questions with matching local garments rendered directly in Chat
 - garment details and editing for names, tags, and sections, with confirmed recoverable archiving
 - persistent garment and section ordering, plus section creation and renaming
+- tap-to-open garment cards with long-press horizontal drag reordering
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
@@ -36,7 +37,7 @@ For text conversations, the Wardrobe Agent supplies Muse with the current active
 
 Tap or long press a garment in Wardrobe to view its canonical image and details, rename it, edit its tags, move it between sections, or archive it after confirmation. “Add piece” opens Chat with the selected section already in the draft so the normal photo-analysis and confirmation flow remains the single ingestion path.
 
-Garment cards can be moved earlier or later from their detail screen. A section's overflow button opens section management for renaming and ordering, and the Wardrobe screen can create new sections. Positions are stored in SQLite and retained across launches.
+Tap a garment card to open its details, or long press and drag it horizontally to rearrange its section. Move earlier/later remains available in the detail screen as an accessible fallback. A section's overflow button opens section management for renaming and reliable move controls, and the Wardrobe screen can create new sections. Positions are stored in SQLite and retained across launches.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

@@ -15,17 +15,17 @@ function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
   return 'shirt-outline';
 }
 
-export function GarmentTile({ garment, compact = false, onLongPress }: { garment: Garment; compact?: boolean; onLongPress?: () => void }) {
+export function GarmentTile({ garment, compact = false, active = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; active?: boolean; onPress?: () => void; onLongPress?: () => void }) {
   const swatch = swatches[garment.name.length % swatches.length];
   return (
     <Pressable
-      accessibilityHint={onLongPress ? 'Long press to view or edit this garment' : undefined}
+      accessibilityHint={onLongPress ? 'Tap to view details or long press and drag to reorder' : onPress ? 'Tap to view details' : undefined}
       accessibilityLabel={garment.name}
-      accessibilityRole={onLongPress ? 'button' : undefined}
+      accessibilityRole={onPress || onLongPress ? 'button' : undefined}
       delayLongPress={350}
       onLongPress={onLongPress}
-      onPress={onLongPress}
-      style={({ pressed }) => [styles.card, compact && styles.compactCard, pressed && onLongPress && styles.pressed]}>
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, compact && styles.compactCard, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
       <View style={[styles.image, compact && styles.compactImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
         {garment.canonicalImage ? (
           <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
@@ -58,4 +58,5 @@ const styles = StyleSheet.create({
   copy: { gap: 4, minHeight: 76, padding: spacing.sm },
   meta: { color: colors.inkMuted },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
+  active: { opacity: 0.92 },
 });

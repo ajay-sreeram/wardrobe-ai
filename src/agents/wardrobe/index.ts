@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, updateGarment } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -27,6 +27,10 @@ const updateGarmentRequestSchema = z.object({
 });
 
 const sectionNameSchema = z.string().trim().min(1).max(50);
+const reorderGarmentsSchema = z.object({
+  sectionId: z.string().min(1),
+  garmentIds: z.array(z.string().min(1)).max(500),
+});
 
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
   const garment = addGarmentRequestSchema.parse(request);
@@ -59,6 +63,20 @@ export async function archiveWardrobeGarment(db: SQLiteDatabase, garmentId: stri
 export async function moveWardrobeGarment(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
   if (!garmentId.trim()) throw new Error('Garment ID is required.');
   return moveGarmentPosition(db, garmentId, direction);
+}
+
+export async function reorderWardrobeGarments(db: SQLiteDatabase, input: z.input<typeof reorderGarmentsSchema>) {
+  const request = reorderGarmentsSchema.parse(input);
+  if (new Set(request.garmentIds).size !== request.garmentIds.length) throw new Error('Garment order contains duplicates.');
+  const current = await db.getAllAsync<{ id: string }>(
+    'SELECT id FROM garments WHERE section_id = ? AND archived_at IS NULL ORDER BY position',
+    request.sectionId,
+  );
+  const currentIds = new Set(current.map((garment) => garment.id));
+  if (currentIds.size !== request.garmentIds.length || request.garmentIds.some((id) => !currentIds.has(id))) {
+    throw new Error('Wardrobe changed while reordering. Please try again.');
+  }
+  return setGarmentPositions(db, request.sectionId, request.garmentIds);
 }
 
 export async function readSection(db: SQLiteDatabase, sectionId: string) {

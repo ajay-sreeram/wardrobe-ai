@@ -155,6 +155,21 @@ export async function moveGarmentPosition(db: SQLiteDatabase, garmentId: string,
   });
 }
 
+export async function setGarmentPositions(db: SQLiteDatabase, sectionId: string, garmentIds: string[]) {
+  await db.withTransactionAsync(async () => {
+    for (const [position, garmentId] of garmentIds.entries()) {
+      const result = await db.runAsync(
+        'UPDATE garments SET position = ?, updated_at = ? WHERE id = ? AND section_id = ? AND archived_at IS NULL',
+        position,
+        new Date().toISOString(),
+        garmentId,
+        sectionId,
+      );
+      if (!result.changes) throw new Error('A garment could not be reordered.');
+    }
+  });
+}
+
 export async function createWardrobeSection(db: SQLiteDatabase, id: string, name: string) {
   await db.runAsync(
     'INSERT INTO sections (id, name, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM sections))',

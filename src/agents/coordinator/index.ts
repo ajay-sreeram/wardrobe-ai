@@ -4,7 +4,7 @@ import { rememberConversation, readMemoryContext, rememberExistingGarmentReferen
 import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, findPotentialDuplicateCandidates, listWardrobeSections, readWardrobeCatalog, updateWardrobeGarment } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, renameSection, updateWardrobeGarment } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -176,4 +176,20 @@ export async function coordinateGarmentUpdate(db: SQLiteDatabase, input: { garme
 
 export async function coordinateGarmentArchive(db: SQLiteDatabase, garmentId: string) {
   return archiveWardrobeGarment(db, garmentId);
+}
+
+export async function coordinateGarmentMove(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
+  return moveWardrobeGarment(db, garmentId, direction);
+}
+
+export async function coordinateSectionCreate(db: SQLiteDatabase, name: string) {
+  return createSection(db, name);
+}
+
+export async function coordinateSectionRename(db: SQLiteDatabase, sectionId: string, name: string) {
+  return renameSection(db, sectionId, name);
+}
+
+export async function coordinateSectionMove(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
+  return moveSection(db, sectionId, direction);
 }

@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
+import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { GarmentTile } from '@/components/wardrobe/GarmentTile';
 import { getWardrobeSections } from '@/database/repository';
@@ -54,7 +55,7 @@ export default function WardrobeScreen() {
                 <AppText variant="heading">{section.name}</AppText>
                 <AppText variant="caption" style={styles.muted}>{section.garments.length} pieces</AppText>
               </View>
-              <Pressable accessibilityLabel={`Edit ${section.name}`} hitSlop={10}>
+              <Pressable accessibilityLabel={`Edit ${section.name}`} hitSlop={10} onPress={() => router.push({ pathname: '/section/[id]', params: { id: section.id } })}>
                 <Ionicons color={colors.inkMuted} name="ellipsis-horizontal" size={22} />
               </Pressable>
             </View>
@@ -69,6 +70,7 @@ export default function WardrobeScreen() {
             </ScrollView>
           </View>
         ))}
+        <AppButton label="Create a section" onPress={() => router.push({ pathname: '/section/[id]', params: { id: 'new' } })} tone="secondary" style={styles.createSection} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -86,4 +88,5 @@ const styles = StyleSheet.create({
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   rail: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   addCard: { alignItems: 'center', borderColor: colors.line, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1.5, gap: spacing.xs, height: 234, justifyContent: 'center', width: 112 },
+  createSection: { marginHorizontal: spacing.lg },
 });

@@ -11,6 +11,7 @@ export const garmentSchema = z.object({
   updatedAt: z.string(),
   wearCount: z.number().int().nonnegative(),
   lastWornAt: z.string().nullable(),
+  position: z.number().int().nonnegative(),
 });
 
 export type Garment = z.infer<typeof garmentSchema>;

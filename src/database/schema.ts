@@ -17,6 +17,7 @@ export const schemaSql = `
     wear_count INTEGER NOT NULL DEFAULT 0,
     last_worn_at TEXT,
     archived_at TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE SET NULL
   );
 

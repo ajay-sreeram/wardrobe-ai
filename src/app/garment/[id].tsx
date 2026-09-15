@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { coordinateGarmentArchive, coordinateGarmentUpdate } from '@/agents/coordinator';
+import { coordinateGarmentArchive, coordinateGarmentMove, coordinateGarmentUpdate } from '@/agents/coordinator';
 import { listWardrobeSections, readGarment } from '@/agents/wardrobe';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
@@ -57,6 +57,19 @@ export default function GarmentDetailsScreen() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'I could not update this garment.');
     } finally {
+      setSaving(false);
+    }
+  }
+
+  async function move(direction: -1 | 1) {
+    if (!garment) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await coordinateGarmentMove(db, garment.id, direction);
+      router.back();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'I could not reorder this garment.');
       setSaving(false);
     }
   }
@@ -126,6 +139,15 @@ export default function GarmentDetailsScreen() {
               </View>
 
               <View style={styles.field}>
+                <AppText variant="label">Order in section</AppText>
+                <View style={styles.orderButtons}>
+                  <AppButton disabled={saving || sectionId !== garment.sectionId} label="Move earlier" onPress={() => move(-1)} tone="secondary" style={styles.flexButton} />
+                  <AppButton disabled={saving || sectionId !== garment.sectionId} label="Move later" onPress={() => move(1)} tone="secondary" style={styles.flexButton} />
+                </View>
+                {sectionId !== garment.sectionId ? <AppText variant="caption" style={styles.muted}>Save the new section before changing its order.</AppText> : null}
+              </View>
+
+              <View style={styles.field}>
                 <AppText variant="label">Tags</AppText>
                 <TextInput
                   accessibilityLabel="Garment tags"
@@ -171,6 +193,8 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 12 },
   tagsInput: { minHeight: 76, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  orderButtons: { flexDirection: 'row', gap: spacing.sm },
+  flexButton: { flex: 1 },
   muted: { color: colors.inkMuted },
   error: { color: colors.danger },
   archiveButton: { borderColor: colors.line, borderWidth: 1 },

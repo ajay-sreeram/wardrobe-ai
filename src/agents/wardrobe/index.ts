@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, getActiveGarment, getActiveGarments, getWardrobeSectionOptions, getWardrobeSections, insertGarment, updateGarment } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, updateGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -25,6 +25,8 @@ const updateGarmentRequestSchema = z.object({
   sectionId: z.string().min(1),
   tags: z.array(z.string().trim().min(1).max(40)).max(12),
 });
+
+const sectionNameSchema = z.string().trim().min(1).max(50);
 
 export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<typeof addGarmentRequestSchema>) {
   const garment = addGarmentRequestSchema.parse(request);
@@ -52,6 +54,35 @@ export async function updateWardrobeGarment(db: SQLiteDatabase, request: z.input
 export async function archiveWardrobeGarment(db: SQLiteDatabase, garmentId: string) {
   if (!garmentId.trim()) throw new Error('Garment ID is required.');
   await archiveGarment(db, garmentId);
+}
+
+export async function moveWardrobeGarment(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
+  if (!garmentId.trim()) throw new Error('Garment ID is required.');
+  return moveGarmentPosition(db, garmentId, direction);
+}
+
+export async function readSection(db: SQLiteDatabase, sectionId: string) {
+  return getWardrobeSectionDetails(db, sectionId);
+}
+
+export async function createSection(db: SQLiteDatabase, name: string) {
+  const parsedName = sectionNameSchema.parse(name);
+  const duplicate = await db.getFirstAsync<{ id: string }>('SELECT id FROM sections WHERE lower(name) = lower(?)', parsedName);
+  if (duplicate) throw new Error('A section with that name already exists.');
+  const id = `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await createWardrobeSection(db, id, parsedName);
+  return id;
+}
+
+export async function renameSection(db: SQLiteDatabase, sectionId: string, name: string) {
+  const parsedName = sectionNameSchema.parse(name);
+  const duplicate = await db.getFirstAsync<{ id: string }>('SELECT id FROM sections WHERE lower(name) = lower(?) AND id != ?', parsedName, sectionId);
+  if (duplicate) throw new Error('A section with that name already exists.');
+  return renameWardrobeSection(db, sectionId, parsedName);
+}
+
+export async function moveSection(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
+  return moveWardrobeSection(db, sectionId, direction);
 }
 
 export type WardrobeCatalogItem = {

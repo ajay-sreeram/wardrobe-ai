@@ -22,6 +22,7 @@ The app currently includes:
 - Coordinator-written Chat copy, so raw Vision observations and confidence scores remain internal
 - agent-driven, read-only wardrobe questions with matching local garments rendered directly in Chat
 - garment details and editing for names, tags, and sections, with confirmed recoverable archiving
+- persistent garment and section ordering, plus section creation and renaming
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
@@ -34,6 +35,8 @@ Vision stays precise and structured internally, while Muse turns its findings in
 For text conversations, the Wardrobe Agent supplies Muse with the current active SQLite catalog as read-only reference data. Muse can answer natural inventory questions such as counts, colors, garment types, sections, and what has not been worn recently, and can return exact garment IDs for rich Chat cards. Returned IDs are validated against SQLite before rendering; Muse cannot invent or mutate wardrobe records through this path.
 
 Tap or long press a garment in Wardrobe to view its canonical image and details, rename it, edit its tags, move it between sections, or archive it after confirmation. “Add piece” opens Chat with the selected section already in the draft so the normal photo-analysis and confirmation flow remains the single ingestion path.
+
+Garment cards can be moved earlier or later from their detail screen. A section's overflow button opens section management for renaming and ordering, and the Wardrobe screen can create new sections. Positions are stored in SQLite and retained across launches.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

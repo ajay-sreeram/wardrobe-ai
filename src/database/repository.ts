@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { garmentSchema, type Garment, type WardrobeSection, type WearEntry } from '@/models/wardrobe';
 
 export type WardrobeSectionOption = { id: string; name: string };
+export type WardrobeSectionDetails = WardrobeSectionOption & { position: number; garmentCount: number; sectionCount: number };
 export type NewGarment = {
   id: string;
   name: string;
@@ -29,6 +30,7 @@ type GarmentRow = {
   updated_at: string;
   wear_count: number;
   last_worn_at: string | null;
+  position: number;
 };
 
 function mapGarment(row: GarmentRow): Garment {
@@ -43,13 +45,14 @@ function mapGarment(row: GarmentRow): Garment {
     updatedAt: row.updated_at,
     wearCount: row.wear_count,
     lastWornAt: row.last_worn_at,
+    position: row.position,
   });
 }
 
 export async function getWardrobeSections(db: SQLiteDatabase): Promise<WardrobeSection[]> {
   const [sectionRows, garmentRows] = await Promise.all([
     db.getAllAsync<{ id: string; name: string; position: number }>('SELECT id, name, position FROM sections ORDER BY position'),
-    db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NULL ORDER BY created_at DESC'),
+    db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NULL ORDER BY section_id, position, created_at'),
   ]);
   const garments = garmentRows.map(mapGarment);
   return sectionRows.map((section) => ({
@@ -59,7 +62,7 @@ export async function getWardrobeSections(db: SQLiteDatabase): Promise<WardrobeS
 }
 
 export async function getActiveGarments(db: SQLiteDatabase): Promise<Garment[]> {
-  const rows = await db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NULL ORDER BY updated_at DESC');
+  const rows = await db.getAllAsync<GarmentRow>('SELECT * FROM garments WHERE archived_at IS NULL ORDER BY section_id, position, updated_at DESC');
   return rows.map(mapGarment);
 }
 
@@ -72,13 +75,24 @@ export async function getWardrobeSectionOptions(db: SQLiteDatabase): Promise<War
   return db.getAllAsync<WardrobeSectionOption>('SELECT id, name FROM sections ORDER BY position');
 }
 
+export async function getWardrobeSectionDetails(db: SQLiteDatabase, sectionId: string): Promise<WardrobeSectionDetails | null> {
+  return db.getFirstAsync<WardrobeSectionDetails>(
+    `SELECT id, name, position,
+       (SELECT COUNT(*) FROM garments WHERE section_id = sections.id AND archived_at IS NULL) AS garmentCount,
+       (SELECT COUNT(*) FROM sections) AS sectionCount
+     FROM sections WHERE id = ?`,
+    sectionId,
+  );
+}
+
 export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
   const now = new Date().toISOString();
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT INTO garments
-        (id, name, section_id, description, tags, canonical_image, created_at, updated_at, wear_count, last_worn_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
+        (id, name, section_id, description, tags, canonical_image, created_at, updated_at, wear_count, last_worn_at, position)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL,
+         (SELECT COALESCE(MAX(position), -1) + 1 FROM garments WHERE section_id = ?))`,
       garment.id,
       garment.name,
       garment.sectionId,
@@ -87,6 +101,7 @@ export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
       garment.canonicalImageUri,
       now,
       now,
+      garment.sectionId,
     );
 
     await db.runAsync(
@@ -103,15 +118,70 @@ export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
 export async function updateGarment(db: SQLiteDatabase, garmentId: string, update: GarmentUpdate) {
   const result = await db.runAsync(
     `UPDATE garments
-     SET name = ?, section_id = ?, tags = ?, updated_at = ?
+     SET name = ?,
+         position = CASE WHEN section_id = ? THEN position ELSE
+           (SELECT COALESCE(MAX(position), -1) + 1 FROM garments AS target WHERE target.section_id = ?)
+         END,
+         section_id = ?, tags = ?, updated_at = ?
      WHERE id = ? AND archived_at IS NULL`,
     update.name,
+    update.sectionId,
+    update.sectionId,
     update.sectionId,
     JSON.stringify(update.tags),
     new Date().toISOString(),
     garmentId,
   );
   if (!result.changes) throw new Error('Garment not found.');
+}
+
+export async function moveGarmentPosition(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
+  const garment = await db.getFirstAsync<{ id: string; section_id: string; position: number }>(
+    'SELECT id, section_id, position FROM garments WHERE id = ? AND archived_at IS NULL',
+    garmentId,
+  );
+  if (!garment) throw new Error('Garment not found.');
+  const neighbor = await db.getFirstAsync<{ id: string; position: number }>(
+    direction < 0
+      ? 'SELECT id, position FROM garments WHERE section_id = ? AND archived_at IS NULL AND position < ? ORDER BY position DESC LIMIT 1'
+      : 'SELECT id, position FROM garments WHERE section_id = ? AND archived_at IS NULL AND position > ? ORDER BY position ASC LIMIT 1',
+    garment.section_id,
+    garment.position,
+  );
+  if (!neighbor) return;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE garments SET position = ?, updated_at = ? WHERE id = ?', neighbor.position, new Date().toISOString(), garment.id);
+    await db.runAsync('UPDATE garments SET position = ?, updated_at = ? WHERE id = ?', garment.position, new Date().toISOString(), neighbor.id);
+  });
+}
+
+export async function createWardrobeSection(db: SQLiteDatabase, id: string, name: string) {
+  await db.runAsync(
+    'INSERT INTO sections (id, name, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM sections))',
+    id,
+    name,
+  );
+}
+
+export async function renameWardrobeSection(db: SQLiteDatabase, sectionId: string, name: string) {
+  const result = await db.runAsync('UPDATE sections SET name = ? WHERE id = ?', name, sectionId);
+  if (!result.changes) throw new Error('Section not found.');
+}
+
+export async function moveWardrobeSection(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
+  const section = await db.getFirstAsync<{ id: string; position: number }>('SELECT id, position FROM sections WHERE id = ?', sectionId);
+  if (!section) throw new Error('Section not found.');
+  const neighbor = await db.getFirstAsync<{ id: string; position: number }>(
+    direction < 0
+      ? 'SELECT id, position FROM sections WHERE position < ? ORDER BY position DESC LIMIT 1'
+      : 'SELECT id, position FROM sections WHERE position > ? ORDER BY position ASC LIMIT 1',
+    section.position,
+  );
+  if (!neighbor) return;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE sections SET position = ? WHERE id = ?', neighbor.position, section.id);
+    await db.runAsync('UPDATE sections SET position = ? WHERE id = ?', section.position, neighbor.id);
+  });
 }
 
 export async function archiveGarment(db: SQLiteDatabase, garmentId: string) {

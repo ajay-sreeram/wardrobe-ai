@@ -11,7 +11,7 @@ export const visionAgentScope = {
 } as const;
 
 export const garmentObservationSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(80),
   category: z.string().min(1),
   description: z.string().min(1),
   colors: z.array(z.string().min(1)).max(5),
@@ -55,11 +55,11 @@ const outputJsonSchema = {
       items: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'Short neutral wardrobe name.' },
+          name: { type: 'string', maxLength: 80, description: 'Short, searchable wardrobe name using the most useful visible identifier(s), usually a primary color plus the culturally correct garment type. Include a contrasting coordinated piece when it distinguishes a set, for example "Purple half saree with brown chuni". Keep finer details in description and tags if the name would become long.' },
           category: { type: 'string', description: 'General garment category.' },
-          description: { type: 'string', description: 'One short object-focused sentence about the target garment cut, material, pattern, and distinctive details. Never mention the person, pose, photo, visibility, or background items.' },
-          colors: { type: 'array', items: { type: 'string' }, maxItems: 5 },
-          tags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
+          description: { type: 'string', description: 'One concise object-focused sentence preserving useful colors, pattern, cut, material, coordinated-piece details, distinctive features, and a clearly readable brand when present. Never mention the person, pose, photo, visibility, or background items.' },
+          colors: { type: 'array', description: 'Specific everyday names for the main and useful contrasting garment colors.', items: { type: 'string' }, maxItems: 5 },
+          tags: { type: 'array', description: 'Searchable garment facts. Put an observed pattern and clearly readable brand first, followed by culturally correct terms and distinctive details. Avoid guesses and do not repeat the colors array.', items: { type: 'string' }, maxItems: 8 },
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           sourceImageIndex: { type: 'integer', minimum: 0, description: 'Zero-based index of the photo that shows this garment most clearly.' },
           suggestedSectionName: { type: 'string', description: 'Best matching name from the supplied wardrobe sections.' },
@@ -126,7 +126,11 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
         input: [
           {
             type: 'text',
-            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain. In descriptions and notes, discuss only the target garment itself. Never mention the person, pose, accessories, unrelated garments, background, photo/image, visibility, or the identification process.
+            text: `Act only as a wardrobe vision specialist. Identify distinct garments visible in these user-selected photos. A photo may be a product shot, folded item, flat lay, hanging garment, mirror selfie, partial view, or alternate view of the same garment. Do not invent hidden details or decide whether anything belongs in the wardrobe. Support garment traditions from every culture and use a safe generic description when a culturally specific name is uncertain. Respect how the person groups and names culturally recognized coordinated sets: if they refer to a set such as a half saree as one dress or outfit, treat it as one wardrobe item unless they explicitly ask to separate its pieces.
+
+Make every garment easy to refer to naturally later. Prefer a concise, distinctive name built from the most useful visible color or pattern plus the garment type instead of a generic type alone. Include a strongly contrasting coordinated component when useful—for example, "Purple half saree with brown chuni" instead of "Half saree". If that would make the name unwieldy, keep the name short and put the remaining color, pattern, coordinated-piece, and distinctive details in the description and tags. Record specific main and contrast colors in colors. Record patterns such as floral, striped, checked, embroidered, printed, or color-blocked when supported. Record a brand in the description and tags only when its name or logo is clearly readable and unambiguous; never infer a brand from styling alone.
+
+In descriptions and notes, discuss only the target garment itself. Never mention the person, pose, accessories, unrelated garments, background, photo/image, visibility, or the identification process.
 User message: ${context.userMessage || '(no message)'}
 Coordinator intent: ${context.intent}
 ${context.focusGarments.length ? `Strict selection: Return ONLY garments matching these user-requested types: ${context.focusGarments.join(', ')}. Treat every other visible garment as background context and do not include it in garments.` : 'Selection: The user did not identify a specific garment type, so return all clearly visible garments.'}
@@ -192,7 +196,7 @@ export async function generateCanonicalGarmentImage(apiKey: string, sourceImage:
           {
             type: 'text',
             text: `Create a premium standardized digital-wardrobe image of only this garment: ${garment.name}. ${garment.description}
-Use the attached user photo strictly as the identity reference. Preserve the exact color, pattern, cut, collar, sleeves, fasteners, texture, and distinctive details. Remove the person, body, other garments, phone, room, hanger, mannequin, labels, and all background objects. Do not redesign or beautify the garment into a different product.
+Use the attached user photo strictly as the identity reference. Preserve the exact color, pattern, cut, collar, sleeves, fasteners, texture, distinctive details, and any visible logo or branding that is genuinely printed, embroidered, or attached to the garment. Remove the person, body, other garments, phone, room, hanger, mannequin, loose retail tags, and all background objects. Do not redesign or beautify the garment into a different product.
 Output one complete, uncropped garment against a perfectly flat, single-color ${chromaBackground} background for clean removal. The background must be exactly uniform edge to edge, with no gradient, texture, floor, or shadow. Center the garment upright on a 3:4 portrait canvas. Keep a consistent apparent scale: the garment's longest dimension must occupy about 82% of the canvas, with roughly 9% clear margin on every outer side. Use the same visual scale and margins for every wardrobe asset. No text, border, scenery, or props.`,
           },
           {

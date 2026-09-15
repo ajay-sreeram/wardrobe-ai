@@ -78,7 +78,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
         title: 'Add as a new garment?',
         description: message.description,
         garmentName: message.garmentName,
-        tags: [message.category, ...message.colors, ...message.tags].filter((tag, index, tags) => tags.indexOf(tag) === index).slice(0, 8),
+        tags: [message.category, ...message.colors, ...message.tags].filter((tag, index, tags) => tags.indexOf(tag) === index).slice(0, 12),
         canonicalImageUri,
         userMessage: message.userMessage,
         memoryFacts: message.memoryFacts,

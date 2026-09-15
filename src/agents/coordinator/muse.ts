@@ -242,7 +242,8 @@ export async function requestNaturalGarmentPresentation(apiKey: string, input: G
 Rewrite the wardrobe specialist findings below into friendly copy for Chat. Preserve facts but do not add any.
 Address the person directly. Never mention "the user", a person or pose, visibility, identification, an image or photo,
 an agent or model, confidence scores, background items, or garments that were not requested. Each description should be
-one short helpful sentence. Each duplicateReason should briefly explain the garment-level similarity, or be empty when
+one short helpful sentence. Preserve useful identifying colors, patterns, coordinated-piece details, and clearly observed
+brand information so the person can refer to the garment naturally later. Each duplicateReason should briefly explain the garment-level similarity, or be empty when
 there is no possible duplicate. The note should contain only a useful uncertainty the person needs to review; otherwise
 return an empty string. Return JSON only in this exact shape:
 {"garments":[{"index":0,"description":"...","duplicateReason":"..."}],"note":"..."}`,

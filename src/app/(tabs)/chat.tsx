@@ -129,7 +129,7 @@ export default function ChatScreen() {
             suggestedSectionId: garment.suggestedSectionId,
             suggestedSectionName: garment.suggestedSectionName,
             wearContext: analysis.wearContext,
-            tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
+            tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 12),
           };
         }));
         if (analysis.note) addAssistantMessage(analysis.note);

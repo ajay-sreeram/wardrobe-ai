@@ -14,6 +14,7 @@ The app currently includes:
 - strict TypeScript and Zod-validated domain boundaries
 - chat-only image selection with an explicit preview and send step; selected source photos are not copied into app storage
 - structured garment analysis through Gemini for only the photos attached to the current message
+- searchable garment identity using useful color, pattern, coordinated-piece, and clearly visible brand details
 - explicit section confirmation before the Wardrobe Agent saves a garment locally
 - Gemini section suggestions validated against the user's existing sections, enabling one-tap confirmation
 - transparent, consistently scaled 3:4 garment PNG generation for Chat previews and the Wardrobe

@@ -114,6 +114,7 @@ export default function ChatScreen() {
               memoryFacts: analysis.memoryFacts,
               suggestedSectionId: garment.suggestedSectionId,
               suggestedSectionName: garment.suggestedSectionName,
+              wearContext: analysis.wearContext,
             };
           }
           return {
@@ -127,6 +128,7 @@ export default function ChatScreen() {
             memoryFacts: analysis.memoryFacts,
             suggestedSectionId: garment.suggestedSectionId,
             suggestedSectionName: garment.suggestedSectionName,
+            wearContext: analysis.wearContext,
             tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 8),
           };
         }));
@@ -139,7 +141,7 @@ export default function ChatScreen() {
         return;
       }
 
-      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText);
+      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText, messages);
       addMessages([
         { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
         ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),

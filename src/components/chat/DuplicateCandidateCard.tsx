@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { coordinateExistingGarmentReference, coordinateGarmentImageGeneration } from '@/agents/coordinator';
+import { coordinateExistingGarmentReference, coordinateGarmentImageGeneration, coordinateWearRecord } from '@/agents/coordinator';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
@@ -15,19 +16,38 @@ import { colors, radius, spacing } from '@/theme/tokens';
 type DuplicateMessage = Extract<ChatMessage, { kind: 'duplicate' }>;
 
 export function DuplicateCandidateCard({ message }: { message: DuplicateMessage }) {
+  const db = useSQLiteContext();
   const replaceMessage = useChatStore((state) => state.replaceMessage);
   const [choice, setChoice] = useState(false);
+  const [logged, setLogged] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function useExisting() {
-    await coordinateExistingGarmentReference({
-      garmentId: message.existingGarmentId,
-      garmentName: message.existingGarmentName,
-      userMessage: message.userMessage,
-      memoryFacts: message.memoryFacts,
-    });
-    setChoice(true);
+  async function selectExisting(logWear = false) {
+    setGenerating(true);
+    setError(null);
+    try {
+      await coordinateExistingGarmentReference({
+        garmentId: message.existingGarmentId,
+        garmentName: message.existingGarmentName,
+        userMessage: message.userMessage,
+        memoryFacts: message.memoryFacts,
+      });
+      if (logWear && message.wearContext) {
+        await coordinateWearRecord(db, {
+          garmentIds: [message.existingGarmentId],
+          garmentNames: [message.existingGarmentName],
+          wornAt: message.wearContext.wornAt,
+          note: message.wearContext.note,
+        });
+        setLogged(true);
+      }
+      setChoice(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'I could not use this wardrobe item.');
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function addAsNew() {
@@ -64,6 +84,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
         memoryFacts: message.memoryFacts,
         suggestedSectionId: message.suggestedSectionId,
         suggestedSectionName: message.suggestedSectionName,
+        wearContext: message.wearContext,
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not generate the new garment image.');
@@ -78,7 +99,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
         <Ionicons color={colors.moss} name="checkmark-circle" size={24} />
         <View style={styles.flex}>
           <AppText variant="label">Using {message.existingGarmentName}</AppText>
-          <AppText variant="caption" style={styles.muted}>No duplicate garment was created.</AppText>
+          <AppText variant="caption" style={styles.muted}>{logged ? 'No duplicate was created, and the wear was added to Timeline.' : 'No duplicate garment was created.'}</AppText>
         </View>
       </Card>
     );
@@ -90,8 +111,9 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
       <AppText variant="caption" style={styles.eyebrow}>Close wardrobe match</AppText>
       <AppText variant="heading">Could this be your {message.existingGarmentName}?</AppText>
       <AppText style={styles.muted}>{message.matchReason}</AppText>
+      {message.wearContext ? <AppButton label="Use existing & log wear" loading={generating} onPress={() => selectExisting(true)} /> : null}
       <View style={styles.actions}>
-        <AppButton disabled={generating} label="Use existing" onPress={useExisting} style={styles.flex} />
+        <AppButton disabled={generating} label={message.wearContext ? 'Use only' : 'Use existing'} onPress={() => selectExisting(false)} style={styles.flex} tone={message.wearContext ? 'secondary' : 'primary'} />
         <AppButton label="Add as new" loading={generating} onPress={addAsNew} tone="secondary" style={styles.flex} />
       </View>
       {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}

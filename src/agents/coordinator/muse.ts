@@ -22,6 +22,10 @@ const imagePlanSchema = z.object({
   focusGarments: z.array(z.string().min(1)).max(6),
   intent: z.string().min(1),
   memoryFacts: z.array(z.string().min(1)).max(4),
+  wearContext: z.object({
+    wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    note: z.string().max(160),
+  }).nullable(),
 });
 
 const garmentPresentationSchema = z.object({
@@ -130,6 +134,7 @@ export async function requestWardrobeAwareReply(
   memoryContext: string,
   wardrobe: WardrobeCatalogItem[],
   localDate: string,
+  conversationContext = '',
 ) {
   const wardrobeContext = `${coordinatorInstructions}
 You can read the person's current wardrobe through the <wardrobe_catalog> reference data supplied below.
@@ -145,7 +150,10 @@ ${memoryContext}
 </local_memory>
 <wardrobe_catalog>
 ${JSON.stringify(wardrobe.map(({ canonicalImage: _canonicalImage, ...item }) => item))}
-</wardrobe_catalog>`;
+</wardrobe_catalog>
+<recent_conversation>
+${conversationContext}
+</recent_conversation>`;
 
   try {
     const response = await requestMuseContent(apiKey, [
@@ -155,6 +163,10 @@ ${JSON.stringify(wardrobe.map(({ canonicalImage: _canonicalImage, ...item }) => 
 When showing, listing, comparing, or recommending specific owned garments, return their exact IDs in garmentIds
 in the most useful order. Return no more than 12 IDs. For a count-only or unrelated question, garmentIds may be empty.
 If nothing matches, return an empty array.
+Treat the recent conversation as context for the current message. If it contains an unresolved pending wear proposal
+and the current message identifies or locates a missing garment, return a new combined proposedWear containing both
+the previously matched garments and the newly resolved garment. The person does not need to repeat "I wore it".
+Never carry garments forward from a proposal marked logged or cancelled.
 If the person clearly states that they are wearing or wore one or more unambiguously matched owned garments, propose
 a wear record in proposedWear. Resolve "today" using the supplied local date and keep note to an explicitly stated
 occasion or context. Do not propose a wear for outfit suggestions, questions, future plans, ambiguous matches, or
@@ -187,8 +199,8 @@ Use null for proposedWear when no wear record should be proposed.
   }
 }
 
-export async function requestImageObservationPlan(apiKey: string, userMessage: string): Promise<ImageObservationPlan> {
-  if (!userMessage.trim()) return { focusGarments: [], intent: 'Identify all clearly visible garments.', memoryFacts: [] };
+export async function requestImageObservationPlan(apiKey: string, userMessage: string, localDate: string): Promise<ImageObservationPlan> {
+  if (!userMessage.trim()) return { focusGarments: [], intent: 'Identify all clearly visible garments.', memoryFacts: [], wearContext: null };
 
   try {
     const response = await requestMuseContent(apiKey, [
@@ -198,13 +210,14 @@ export async function requestImageObservationPlan(apiKey: string, userMessage: s
 If they explicitly name garment types, focusGarments must contain only those types. Example: "here is my new shirt" means ["shirt"], even if trousers are also visible.
 If they ask about an outfit, everything they are wearing, or do not identify a garment, use an empty focusGarments array to mean all visible garments.
 Extract memoryFacts only from durable facts the user explicitly states, especially their own garment name, ownership wording, sentimental meaning, purchase context, or occasion. Example: "this is my wedding dress" means ["The user calls this garment their wedding dress."]. Do not infer preferences or facts from appearance.
-Return only JSON in this shape: {"focusGarments":["garment type"],"intent":"short summary","memoryFacts":["explicit durable fact"]}. Do not include reasoning or Markdown.`,
+Today's local date is ${localDate}. If the user explicitly says they are wearing or wore the submitted garment, set wearContext with the resolved YYYY-MM-DD date and only an explicitly stated occasion/context as note. A wear intent may coexist with adding a new garment. For suggestions, future plans, or no wear statement, use null.
+Return only JSON in this shape: {"focusGarments":["garment type"],"intent":"short summary","memoryFacts":["explicit durable fact"],"wearContext":{"wornAt":"YYYY-MM-DD","note":"explicit context or empty"}}. Use null for wearContext when absent. Do not include reasoning or Markdown.`,
       },
       { role: 'user', content: userMessage },
     ], 512);
     return imagePlanSchema.parse(parseJsonObject(response));
   } catch {
-    return { focusGarments: [], intent: userMessage, memoryFacts: [] };
+    return { focusGarments: [], intent: userMessage, memoryFacts: [], wearContext: null };
   }
 }
 

@@ -3,25 +3,28 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { coordinateGarmentAddition } from '@/agents/coordinator';
+import { coordinateGarmentAddition, coordinateWearRecord } from '@/agents/coordinator';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
+import type { ChatMessage } from '@/models/agent';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName }: { title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string }) {
+type ConfirmationMessage = Extract<ChatMessage, { kind: 'confirmation' }>;
+
+export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName, wearContext }: ConfirmationMessage) {
   const db = useSQLiteContext();
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function save() {
+  async function save(logWear = false) {
     setError(null);
     setSaving(true);
     try {
-      await coordinateGarmentAddition({
+      const garmentId = await coordinateGarmentAddition({
         db,
         garmentName,
         sectionId: suggestedSectionId,
@@ -32,7 +35,22 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
         userMessage,
         memoryFacts,
       });
-      setChoice(`Added to ${suggestedSectionName}`);
+      if (logWear && wearContext) {
+        try {
+          await coordinateWearRecord(db, {
+            garmentIds: [garmentId],
+            garmentNames: [garmentName],
+            wornAt: wearContext.wornAt,
+            note: wearContext.note,
+          });
+          setChoice(`Added to ${suggestedSectionName} and Timeline`);
+        } catch {
+          setChoice(`Added to ${suggestedSectionName}`);
+          setError('The garment was saved, but I could not add the wear entry to Timeline.');
+        }
+      } else {
+        setChoice(`Added to ${suggestedSectionName}`);
+      }
     } catch {
       setError('I could not save this garment locally. Please try again.');
     } finally {
@@ -46,7 +64,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
         <Ionicons color={colors.moss} name="checkmark-circle" size={24} />
         <View style={styles.flex}>
           <AppText variant="label">{choice}</AppText>
-          <AppText variant="caption" style={styles.muted}>{choice.startsWith('Added') ? 'Saved locally to your wardrobe.' : 'No wardrobe data was changed.'}</AppText>
+          <AppText variant="caption" style={error ? styles.error : styles.muted}>{error ?? (choice.startsWith('Added') ? 'Saved locally to your wardrobe.' : 'No wardrobe data was changed.')}</AppText>
         </View>
       </Card>
     );
@@ -62,8 +80,9 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
         <AppText variant="caption" style={styles.sectionSuggestion}>Suggested section · {suggestedSectionName}</AppText>
         <View style={styles.chips}>{tags.map((tag) => <Chip key={tag} label={tag} />)}</View>
       </View>
+      {wearContext ? <AppButton label="Add & log wear" loading={saving} onPress={() => save(true)} /> : null}
       <View style={styles.actions}>
-        <AppButton label={`Add to ${suggestedSectionName}`} loading={saving} onPress={save} style={styles.flex} />
+        <AppButton label={wearContext ? 'Add only' : `Add to ${suggestedSectionName}`} loading={saving} onPress={() => save(false)} style={styles.flex} tone={wearContext ? 'secondary' : 'primary'} />
         <AppButton disabled={saving} label="Not mine" onPress={() => setChoice('Not mine')} tone="secondary" style={styles.flex} />
       </View>
       <AppButton disabled={saving} label="Already exists" onPress={() => setChoice('Already exists')} tone="quiet" />

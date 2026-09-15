@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition, rememberWear } from '@/agents/memory';
-import { specialistRequestSchema, type SpecialistRequest } from '@/models/agent';
+import { specialistRequestSchema, type ChatMessage, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
 import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
@@ -20,6 +20,21 @@ function fallbackDescription(garmentName: string) {
 
 function fallbackDuplicateReason(existingGarmentName: string) {
   return `Its color, shape, and details look close to your ${existingGarmentName}.`;
+}
+
+function localDateString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function recentConversationContext(messages: ChatMessage[]) {
+  return messages.slice(-16).flatMap((message) => {
+    if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
+    if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
+    if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
+    if (message.kind === 'wear_status') return [`Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
+    return [];
+  }).join('\n');
 }
 
 export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
@@ -44,8 +59,9 @@ export async function coordinateImageObservation({
   onProgress?: (text: string) => void;
 }) {
   onProgress?.('Understanding your request…');
+  const localDate = localDateString();
   const [plan, sections] = await Promise.all([
-    requestImageObservationPlan(museApiKey, userMessage),
+    requestImageObservationPlan(museApiKey, userMessage, localDate),
     listWardrobeSections(db),
   ]);
   if (!sections.length) throw new Error('Create a wardrobe section before adding a garment.');
@@ -117,14 +133,13 @@ export async function coordinateImageObservation({
     note: presentation?.note || (analysis.note ? 'A few details were unclear, so please review the suggestion before adding it.' : ''),
     garments: presentedGarments,
     memoryFacts: plan.memoryFacts,
+    wearContext: plan.wearContext,
   };
 }
 
-export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string) {
+export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
   const [memory, wardrobe] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db)]);
-  const now = new Date();
-  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, localDate);
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, localDateString(), recentConversationContext(messages));
   await rememberConversation(userMessage, reply.answer).catch(() => undefined);
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
   return {

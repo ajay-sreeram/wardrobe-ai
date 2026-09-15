@@ -18,7 +18,7 @@ type ChatState = {
   setDraft: (draft: string) => void;
   addPendingImages: (images: PendingChatImage[]) => void;
   removePendingImage: (id: string) => void;
-  sendMessage: (images: ChatMessage[]) => void;
+  sendMessage: (images: ChatMessage[], text?: string) => void;
   addMessages: (messages: ChatMessage[]) => void;
   replaceMessage: (id: string, message: ChatMessage) => void;
   addError: (text: string) => void;
@@ -36,15 +36,18 @@ export const useChatStore = create<ChatState>((set) => ({
   setDraft: (draft) => set({ draft }),
   addPendingImages: (images) => set((state) => ({ pendingImages: [...state.pendingImages, ...images].slice(0, 4) })),
   removePendingImage: (id) => set((state) => ({ pendingImages: state.pendingImages.filter((image) => image.id !== id) })),
-  sendMessage: (images) => set((state) => ({
-    draft: '',
-    messages: [
-      ...state.messages,
-      ...images,
-      ...(state.draft.trim() ? [{ id: `text-${Date.now()}`, kind: 'text' as const, role: 'user' as const, text: state.draft.trim() }] : []),
-    ],
-    pendingImages: [],
-  })),
+  sendMessage: (images, text) => set((state) => {
+    const submittedText = (text ?? state.draft).trim();
+    return {
+      draft: '',
+      messages: [
+        ...state.messages,
+        ...images,
+        ...(submittedText ? [{ id: `text-${Date.now()}`, kind: 'text' as const, role: 'user' as const, text: submittedText }] : []),
+      ],
+      pendingImages: [],
+    };
+  }),
   addMessages: (messages) => set((state) => ({ messages: [...state.messages, ...messages] })),
   replaceMessage: (id, message) => set((state) => ({ messages: state.messages.map((item) => item.id === id ? message : item) })),
   addError: (text) => set((state) => ({ messages: [...state.messages, { id: `error-${Date.now()}`, kind: 'error', text }] })),

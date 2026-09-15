@@ -10,17 +10,19 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { coordinateImageObservation, coordinateTextConversation } from '@/agents/coordinator';
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ChatMessage } from '@/components/chat/ChatMessage';
+import { StarterActions } from '@/components/chat/StarterActions';
 import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { developmentEnv } from '@/config/env';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
-import { useChatStore } from '@/state/chat';
+import { type PendingChatImage, useChatStore } from '@/state/chat';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function ChatScreen() {
   const db = useSQLiteContext();
   const { addAssistantMessage, addError, addMessages, addPendingImages, draft, messages, pendingImages, removePendingImage, sendMessage, setDraft } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
+  const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [progressText, setProgressText] = useState('Thinking…');
   const canSend = Boolean(draft.trim() || pendingImages.length) && !sending;
@@ -55,10 +57,9 @@ export default function ChatScreen() {
     }
   }
 
-  async function handleSend() {
-    if (!canSend) return;
-    const submittedText = draft.trim();
-    const submittedImages = [...pendingImages];
+  async function submit(submittedText: string, submittedImages: PendingChatImage[]) {
+    if (sendingRef.current || (!submittedText && !submittedImages.length)) return;
+    sendingRef.current = true;
     setProgressText(submittedImages.length ? 'Analyzing garment…' : 'Thinking…');
     setSending(true);
     try {
@@ -70,7 +71,7 @@ export default function ChatScreen() {
         width: image.width,
         height: image.height,
       }));
-      sendMessage(imageMessages);
+      sendMessage(imageMessages, submittedText);
 
       if (submittedImages.length) {
         if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
@@ -157,8 +158,18 @@ export default function ChatScreen() {
     } catch (error) {
       addError(error instanceof Error ? error.message : 'I could not complete that request. Please try again.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
+  }
+
+  function handleSend() {
+    if (!canSend) return;
+    void submit(draft.trim(), [...pendingImages]);
+  }
+
+  function handleStarter(prompt: string) {
+    void submit(prompt, []);
   }
 
   return (
@@ -170,6 +181,7 @@ export default function ChatScreen() {
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
+          ListFooterComponent={messages.length === 1 ? <StarterActions disabled={sending} onSelect={handleStarter} /> : null}
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} />}
         />

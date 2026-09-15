@@ -26,6 +26,7 @@ The app currently includes:
 - tap-to-open garment cards with long-press horizontal drag reordering
 - confirmation-first conversational wear logging into the local Timeline diary
 - pending outfit context across Chat follow-ups and combined add-plus-log handling for worn photo uploads
+- outfit-pairing history and explicit rationale/preferences supplied to Muse for grounded recommendations
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
@@ -44,6 +45,8 @@ Swipe a garment rail to browse it normally. Tap a card to open its details, or l
 When a text message clearly says that owned garments were worn, Muse proposes exact catalog IDs and a date instead of changing history directly. Chat renders a review card, and only “Log outfit” delegates the mutation to the Wardrobe Agent. Confirmed entries update the local diary, wear counts, last-worn dates, and recent agent memory. Suggestions, future plans, and ambiguous garment matches never create a wear proposal.
 
 Muse also receives a compact structured summary of recent rich Chat events. A follow-up such as “check in Casual” can resolve a missing garment in a pending outfit and return a new combined wear proposal without requiring the wearer to repeat the original sentence. When a photo message says a new garment was worn, garment confirmation offers “Add & log wear”; a duplicate match similarly offers “Use existing & log wear.” Both operations remain user-confirmed.
+
+Each confirmed wear row keeps the garments together as one outfit, plus its date and any explicitly stated reason or context such as destination, occasion, weather, comfort, mood, styling goal, or feedback. The Wardrobe Agent supplies a bounded recent history of these pairings to Muse for recommendations. Explicit durable preferences are also saved in local `USER.md`; isolated outfit choices are not automatically promoted into preferences.
 
 On upgrade, the app removes source-photo copies created by earlier development milestones; this never affects the originals in the system Photos library. After a garment is confirmed, the Memory Agent records user-owned terminology and durable context such as “my wedding dress” in `USER.md`. A bounded recent conversation trail is kept in `RECENT.md`, and both are supplied as local context for later Muse conversations.
 

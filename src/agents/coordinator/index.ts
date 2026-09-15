@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberGarmentAddition, rememberWear } from '@/agents/memory';
+import { rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWear } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readWardrobeCatalog, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, updateWardrobeGarment } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -138,9 +138,12 @@ export async function coordinateImageObservation({
 }
 
 export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = []) {
-  const [memory, wardrobe] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, localDateString(), recentConversationContext(messages));
-  await rememberConversation(userMessage, reply.answer).catch(() => undefined);
+  const [memory, wardrobe, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), readWardrobeWearHistory(db)]);
+  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, wearHistory, localDateString(), recentConversationContext(messages));
+  await Promise.all([
+    rememberConversation(userMessage, reply.answer),
+    rememberExplicitWardrobeFacts(reply.memoryFacts),
+  ]).catch(() => undefined);
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
   return {
     text: reply.answer,

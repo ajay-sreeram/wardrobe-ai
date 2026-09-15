@@ -55,6 +55,17 @@ export function rememberWear(garmentNames: string[], wornAt: string, note: strin
   return serializeWrite(() => appendRecentNow(`Logged ${garmentNames.join(' + ')} for ${wornAt}${note ? ` (${clean(note, 160)})` : ''}.`));
 }
 
+export function rememberExplicitWardrobeFacts(facts: string[]) {
+  return serializeWrite(async () => {
+    if (!facts.length) return;
+    const existing = await readMemoryFile('USER.md');
+    const additions = facts.map((fact) => clean(fact))
+      .filter((fact) => fact && !existing.toLocaleLowerCase().includes(fact.toLocaleLowerCase()))
+      .map((fact) => `- ${fact}`);
+    if (additions.length) writeMemoryFile('USER.md', `${existing.trimEnd()}\n${additions.join('\n')}\n`);
+  });
+}
+
 export function rememberExistingGarmentReference({ garmentId, garmentName, userMessage, memoryFacts }: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {
   return serializeWrite(async () => {
     const existing = await readMemoryFile('USER.md');

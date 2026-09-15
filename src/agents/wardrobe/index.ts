@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, getActiveGarment, getActiveGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, setGarmentPositions, updateGarment } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -134,6 +134,12 @@ export type WardrobeCatalogItem = {
   lastWornAt: string | null;
 };
 
+export type WardrobeWearHistoryItem = {
+  wornAt: string;
+  context: string | null;
+  garments: { id: string; name: string }[];
+};
+
 export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeCatalogItem[]> {
   const sections = await getWardrobeSections(db);
   return sections.flatMap((section) => section.garments.map((garment) => ({
@@ -146,6 +152,15 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
     wearCount: garment.wearCount,
     lastWornAt: garment.lastWornAt,
   })));
+}
+
+export async function readWardrobeWearHistory(db: SQLiteDatabase, limit = 40): Promise<WardrobeWearHistoryItem[]> {
+  const timeline = await getWearTimeline(db);
+  return timeline.slice(0, limit).map((entry) => ({
+    wornAt: entry.wornAt,
+    context: entry.note,
+    garments: entry.garments.map((garment) => ({ id: garment.id, name: garment.name })),
+  }));
 }
 
 export type DuplicateCandidate = Garment & { canonicalImage: string };

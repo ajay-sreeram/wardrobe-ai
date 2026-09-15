@@ -1,15 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
+import { AppButton } from '@/components/ui/AppButton';
 import { Card } from '@/components/ui/Card';
 import { developmentEnv } from '@/config/env';
+import { useChatStore } from '@/state/chat';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const clearHistory = useChatStore((state) => state.clearHistory);
   const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
 
   const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
@@ -20,6 +23,17 @@ export default function SettingsScreen() {
     { icon: 'shield-checkmark-outline', label: 'Privacy & local data', value: 'On device' },
     { icon: 'sparkles-outline', label: 'AI behavior', value: providerCount ? `${providerCount} dev env` : 'Not connected' },
   ];
+
+  function confirmClearHistory() {
+    Alert.alert(
+      'Clear chat history?',
+      'This removes saved conversations from this device. Your wardrobe, Timeline, generated garment images, and personal memory will stay untouched.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear history', style: 'destructive', onPress: clearHistory },
+      ],
+    );
+  }
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -48,6 +62,13 @@ export default function SettingsScreen() {
             </View>
           ))}
         </View>
+        <Card style={styles.chatCard}>
+          <View style={styles.flex}>
+            <AppText variant="label">Chat history</AppText>
+            <AppText variant="caption" style={styles.muted}>Remove saved conversations without changing Muse memory or wardrobe data.</AppText>
+          </View>
+          <AppButton label="Clear" onPress={confirmClearHistory} tone="quiet" />
+        </Card>
         <AppText variant="caption" style={styles.footnote}>Development keys load from local-secrets/.env and are bundled temporarily. Do not distribute this build.</AppText>
       </ScrollView>
     </SafeAreaView>
@@ -65,6 +86,7 @@ const styles = StyleSheet.create({
   localIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 23, height: 46, justifyContent: 'center', width: 46 },
   muted: { color: colors.inkMuted },
   group: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', paddingHorizontal: spacing.md },
+  chatCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 58 },
   rowBorder: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
   footnote: { color: colors.inkMuted, paddingHorizontal: spacing.sm, textAlign: 'center' },

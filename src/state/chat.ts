@@ -19,6 +19,8 @@ type ChatState = {
   pendingImages: PendingChatImage[];
   setDraft: (draft: string) => void;
   hydrateHistory: () => Promise<void>;
+  startNewConversation: () => void;
+  clearHistory: () => void;
   addPendingImages: (images: PendingChatImage[]) => void;
   removePendingImage: (id: string) => void;
   sendMessage: (images: ChatMessage[], text?: string) => void;
@@ -34,7 +36,7 @@ const previewMessages: ChatMessage[] = [
 ];
 
 const maximumPersistedMessages = 150;
-const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'wardrobe_results', 'wear_status', 'action_status']);
+const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'conversation_boundary', 'wardrobe_results', 'wear_status', 'action_status']);
 
 function saveHistory(messages: ChatMessage[]) {
   const safeMessages = messages
@@ -59,6 +61,18 @@ export const useChatStore = create<ChatState>((set) => ({
   hydrateHistory: async () => {
     const history = await readChatHistory();
     set({ historyReady: true, messages: history.length ? history : previewMessages });
+  },
+  startNewConversation: () => set((state) => ({
+    draft: '',
+    messages: appendMessages(state, [
+      { id: `conversation-${Date.now()}`, kind: 'conversation_boundary', createdAt: new Date().toISOString() },
+      { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: 'Fresh start. What would you like help with?' },
+    ]),
+    pendingImages: [],
+  })),
+  clearHistory: () => {
+    writeChatHistory([]);
+    set({ draft: '', messages: previewMessages, pendingImages: [] });
   },
   addPendingImages: (images) => set((state) => ({ pendingImages: [...state.pendingImages, ...images].slice(0, 4) })),
   removePendingImage: (id) => set((state) => ({ pendingImages: state.pendingImages.filter((image) => image.id !== id) })),

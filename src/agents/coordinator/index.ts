@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
+import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberGarmentArchive, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
@@ -32,7 +32,8 @@ function localDateContext() {
 }
 
 function recentConversationContext(messages: ChatMessage[]) {
-  const contextEntries = messages.flatMap((message) => {
+  const boundaryIndex = messages.reduce((latest, message, index) => message.kind === 'conversation_boundary' ? index : latest, -1);
+  const contextEntries = messages.slice(boundaryIndex + 1).flatMap((message) => {
     if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
     if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
     if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
@@ -237,7 +238,9 @@ export async function coordinateGarmentUpdate(db: SQLiteDatabase, input: { garme
 }
 
 export async function coordinateGarmentArchive(db: SQLiteDatabase, garmentId: string) {
-  return archiveWardrobeGarment(db, garmentId);
+  const garment = await readWardrobeCatalog(db).then((items) => items.find((item) => item.id === garmentId));
+  await archiveWardrobeGarment(db, garmentId);
+  if (garment) await rememberGarmentArchive(garment.id, garment.name).catch(() => undefined);
 }
 
 export async function coordinateGarmentMove(db: SQLiteDatabase, garmentId: string, direction: -1 | 1) {
@@ -284,9 +287,8 @@ export async function coordinateWardrobeMutation(db: SQLiteDatabase, action: War
   }
   if (action.type === 'archive_garment') {
     const garment = await readWardrobeCatalog(db).then((items) => items.find((item) => item.id === action.garmentId));
-    await archiveWardrobeGarment(db, action.garmentId);
+    await coordinateGarmentArchive(db, action.garmentId);
     const summary = `Archived ${garment?.name ?? 'garment'}`;
-    await rememberWardrobeChange(`${summary}.`).catch(() => undefined);
     return summary;
   }
   if (action.type === 'create_section') {

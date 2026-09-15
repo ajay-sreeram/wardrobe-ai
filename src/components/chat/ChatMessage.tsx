@@ -13,6 +13,15 @@ import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; onRetry?: () => void }) {
+  if (message.kind === 'conversation_boundary') {
+    return (
+      <View accessibilityLabel="New conversation" style={styles.boundary}>
+        <View style={styles.boundaryLine} />
+        <AppText variant="caption" style={styles.boundaryText}>New conversation</AppText>
+        <View style={styles.boundaryLine} />
+      </View>
+    );
+  }
   if (message.kind === 'status') return <AgentProgress text={message.text} />;
   if (message.kind === 'confirmation') return <ConfirmationCard {...message} />;
   if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
@@ -73,4 +82,7 @@ const styles = StyleSheet.create({
   retryText: { color: colors.danger },
   statusNote: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.mossSoft, borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   statusText: { color: colors.inkMuted, flex: 1 },
+  boundary: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs },
+  boundaryLine: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
+  boundaryText: { color: colors.inkMuted },
 });

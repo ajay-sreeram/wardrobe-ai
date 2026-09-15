@@ -76,6 +76,22 @@ export function rememberWardrobeChange(summary: string) {
   return serializeWrite(() => appendRecentNow(`${clean(summary)} SQLite wardrobe and Timeline are canonical.`));
 }
 
+export function rememberGarmentArchive(garmentId: string, garmentName: string) {
+  return serializeWrite(async () => {
+    const existing = await readMemoryFile('USER.md');
+    const idMarker = `id: ${garmentId}`.toLocaleLowerCase();
+    const garmentMarker = `[garment: ${garmentName}]`.toLocaleLowerCase();
+    const entries = existing.split('\n').filter((line) => line.startsWith('- ')).flatMap((line) => {
+      const lower = line.toLocaleLowerCase();
+      if (lower.includes(idMarker)) return [];
+      if (lower.includes(garmentMarker)) return [line.replace(/\[garment:/i, '[archived garment:')];
+      return [line];
+    });
+    writeUserEntries(entries);
+    await appendRecentNow(`Archived ${garmentName}. It is no longer in the active wardrobe; its Timeline history and archived personal context remain available.`);
+  });
+}
+
 export function rememberExplicitWardrobeFacts(facts: string[]) {
   return serializeWrite(async () => {
     if (!facts.length) return;

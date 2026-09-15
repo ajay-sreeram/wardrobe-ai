@@ -3,7 +3,7 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 
@@ -22,13 +22,15 @@ type FailedSubmission = { errorId: string; images: PendingChatImage[]; text: str
 
 export default function ChatScreen() {
   const db = useSQLiteContext();
-  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, startNewConversation } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [failedSubmission, setFailedSubmission] = useState<FailedSubmission | null>(null);
   const [progressText, setProgressText] = useState('Thinking…');
   const canSend = historyReady && Boolean(draft.trim() || pendingImages.length) && !sending;
+  const boundaryIndex = messages.reduce((latest, message, index) => message.kind === 'conversation_boundary' ? index : latest, -1);
+  const activeMessageCount = messages.length - boundaryIndex - 1;
 
   useEffect(() => {
     if (!historyReady) void hydrateHistory();
@@ -193,16 +195,36 @@ export default function ChatScreen() {
     void submit(retry.text, retry.images, false);
   }
 
+  function handleNewConversation() {
+    const start = () => {
+      setFailedSubmission(null);
+      startNewConversation();
+    };
+    if (!draft.trim() && !pendingImages.length) {
+      start();
+      return;
+    }
+    Alert.alert('Start a new conversation?', 'Your unsent message and selected photos will be cleared.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Start new', onPress: start },
+    ]);
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={88} style={styles.flex}>
-        <ScreenHeader eyebrow="Wardrobe assistant" title="Your closet, in conversation" />
+        <ScreenHeader
+          action={{ disabled: sending || !historyReady, icon: 'create-outline', label: 'Start a new conversation', onPress: handleNewConversation }}
+          eyebrow="Wardrobe assistant"
+          settingsDisabled={sending}
+          title="Your closet, in conversation"
+        />
         <FlashList
           contentContainerStyle={styles.listContent}
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
-          ListFooterComponent={messages.length === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} /> : null}
+          ListFooterComponent={activeMessageCount === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} /> : null}
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} onRetry={item.kind === 'error' && item.id === failedSubmission?.errorId ? handleRetry : undefined} />}
         />

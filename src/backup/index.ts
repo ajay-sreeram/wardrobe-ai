@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
 import { exportBackupFile, pickBackupFile, readBackupImage, writeBackupImage } from '@/backup/files';
+import { cleanTransparentPngBase64 } from '@/image/removeFlatBackground';
 import type { WardrobeChatGarment } from '@/models/agent';
 import { readChatHistory, writeChatHistory, type PersistedChatMessage } from '@/storage/chatHistory';
 import { readMemoryFile, writeMemoryFile } from '@/storage/memory';
@@ -138,7 +139,10 @@ export async function restoreWardrobeBackup(db: SQLiteDatabase, backup: Wardrobe
   validateReferences(backup);
   const imageUris = new Map<string, string>();
   for (const garment of backup.garments) {
-    if (garment.imageBase64) imageUris.set(garment.id, await writeBackupImage(garment.id, garment.imageBase64));
+    if (garment.imageBase64) {
+      const cleaned = cleanTransparentPngBase64(garment.imageBase64);
+      imageUris.set(garment.id, await writeBackupImage(garment.id, cleaned));
+    }
   }
 
   await db.withTransactionAsync(async () => {

@@ -5,3 +5,5 @@ export function saveGeneratedGarmentPreview(base64: string) {
 export async function persistCanonicalGarmentImage(previewUri: string) {
   return previewUri;
 }
+
+export async function cleanCanonicalGarmentImages() {}

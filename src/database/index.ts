@@ -5,6 +5,7 @@ import { migrateRemoveSourceImages } from '@/database/migrations/002-remove-sour
 import { migrateRemoveDemoData } from '@/database/migrations/003-remove-demo-data';
 import { migrateGarmentOrder } from '@/database/migrations/004-garment-order';
 import { seedDevelopmentData } from '@/database/seed';
+import { cleanCanonicalGarmentImages } from '@/storage/canonicalImages';
 import { initializeMemoryFiles } from '@/storage/memory';
 
 export async function initializeDatabase(db: SQLiteDatabase) {
@@ -13,5 +14,6 @@ export async function initializeDatabase(db: SQLiteDatabase) {
   await migrateRemoveDemoData(db);
   await migrateGarmentOrder(db);
   await seedDevelopmentData(db);
+  await cleanCanonicalGarmentImages();
   initializeMemoryFiles();
 }

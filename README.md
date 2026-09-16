@@ -95,6 +95,10 @@ npx expo export --platform ios
 
 ## Development API configuration
 
-Create `local-secrets/.env` with `MUSE_API_KEY` and `GEMINI_API_KEY`. The folder is ignored by Git, but Expo currently embeds these values in the development client bundle. Never distribute this build through TestFlight or the App Store. Restart with `npx expo start --clear` after changing the file.
+Deploy the API in `worker/`, then create `local-secrets/.env` containing only its public URL:
 
-The production credential design will move provider secrets behind a server boundary before distribution.
+```dotenv
+WARDROBE_API_BASE_URL=https://your-worker.workers.dev
+```
+
+Muse and Gemini credentials are encrypted Cloudflare Worker secrets and are never included in the Expo bundle. See `worker/README.md` for initial setup and rotation. Restart Expo with `npx expo start --clear` after changing the URL.

@@ -1,1 +1,1 @@
-export { persistCanonicalGarmentImage, saveGeneratedGarmentPreview } from './canonicalImages.native';
+export { cleanCanonicalGarmentImages, persistCanonicalGarmentImage, saveGeneratedGarmentPreview } from './canonicalImages.native';

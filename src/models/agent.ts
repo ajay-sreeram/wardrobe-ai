@@ -50,7 +50,7 @@ export type ChatMessage =
   | { id: string; kind: 'error'; text: string; retryable?: boolean }
   | { id: string; kind: 'conversation_boundary'; createdAt: string }
   | { id: string; kind: 'wardrobe_results'; garments: WardrobeChatGarment[] }
-  | { id: string; kind: 'outfit_suggestion'; title: string; reason: string; garments: WardrobeChatGarment[] }
+  | { id: string; kind: 'outfit_suggestion'; suggestionKind?: 'outfit' | 'packing' | 'capsule'; title: string; reason: string; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'wear_confirmation'; garments: WardrobeChatGarment[]; garmentIds: string[]; wornAt: string; note: string }
   | { id: string; kind: 'wear_status'; garmentNames: string[]; wornAt: string; logged: boolean }
   | { id: string; kind: 'action_confirmation'; title: string; description: string; confirmLabel: string; action: WardrobeMutation; garments: WardrobeChatGarment[] }

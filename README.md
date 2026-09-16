@@ -39,6 +39,7 @@ The app currently includes:
 - a compact Archived Pieces screen with UI and confirmation-first natural-language restore support
 - reusable rich garment-collection cards for Muse outfit suggestions, searches, and future grouped results
 - conversational outfit revisions that preserve unchanged pieces and learn only explicit, self-contained pairing feedback
+- chat-driven packing and capsule collections using the existing reusable recommendation cards
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days

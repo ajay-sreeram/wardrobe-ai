@@ -56,9 +56,10 @@ const wardrobeConversationSchema = z.object({
   answer: z.string().min(1),
   garmentIds: z.array(z.string()).max(12),
   outfitSuggestions: z.array(z.object({
+    kind: z.enum(['outfit', 'packing', 'capsule']).default('outfit'),
     title: z.string().trim().min(1).max(80),
     reason: z.string().trim().min(1).max(240),
-    garmentIds: z.array(z.string().min(1)).min(1).max(6),
+    garmentIds: z.array(z.string().min(1)).min(1).max(12),
   })).max(3).default([]),
   memoryFacts: z.array(z.string().min(1).max(240)).max(4),
   forgottenMemoryFacts: z.array(z.string().min(1).max(240)).max(4).default([]),
@@ -468,7 +469,11 @@ When showing, listing, comparing, or recommending specific owned garments, retur
 in the most useful order. Return no more than 12 IDs. For a count-only or unrelated question, garmentIds may be empty.
 If nothing matches, return an empty array.
 For a concrete outfit recommendation, put each coordinated look in outfitSuggestions with a short natural title, a concise
-useful reason, and exact garment IDs in styling order. A one-piece dress may be a complete look. Return at most three looks.
+useful reason, kind "outfit", and exact garment IDs in styling order. A one-piece dress may be a complete look. Return at most three looks.
+For a packing request or capsule wardrobe, reuse outfitSuggestions with kind "packing" or "capsule" and return a compact,
+deduplicated collection of exact garment IDs that can mix into useful looks. Prefer versatile pieces, respect explicit
+preferences and dress requirements, and use wear history to rediscover suitable underused items. Briefly explain the coverage
+in reason. If trip length, occasion, dress code, or expected weather is essential and missing, ask one question instead of guessing.
 Do not repeat outfit-suggestion IDs in the top-level garmentIds; reserve garmentIds for searches, lists, and comparisons.
 When outfitSuggestions is non-empty, keep answer to one short introduction and do not repeat the garment names or reasons there.
 For a revision such as “change the top,” “make the second look more casual,” or “not those trousers,” resolve the referenced
@@ -516,7 +521,7 @@ proposedAction must be null or exactly one of these JSON shapes:
 {"type":"update_wear","wearId":"exact-id","garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"full resulting note"}
 {"type":"delete_wear","wearId":"exact-id"}
 Return JSON only in this exact shape:
-{"answer":"natural direct response","garmentIds":["exact-id"],"outfitSuggestions":[{"title":"short look name","reason":"why it fits","garmentIds":["exact-id"]}],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
+{"answer":"natural direct response","garmentIds":["exact-id"],"outfitSuggestions":[{"kind":"outfit|packing|capsule","title":"short recommendation name","reason":"why it fits","garmentIds":["exact-id"]}],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
 Use null for proposedWear when no wear record should be proposed.
 Use null for proposedAction when no local mutation should be proposed.
 `,

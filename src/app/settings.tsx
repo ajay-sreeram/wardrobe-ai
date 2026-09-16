@@ -10,7 +10,7 @@ import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { developmentEnv } from '@/config/env';
+import { hasApiProxy } from '@/config/providers';
 import { useChatStore } from '@/state/chat';
 import { useThemeStore, type ThemePreference } from '@/state/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
@@ -26,14 +26,13 @@ export default function SettingsScreen() {
   const themePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
   const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
-  const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
 
   const wardrobeRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
     { icon: 'layers-outline', label: 'Manage sections', value: '4 sections' },
     { icon: 'pricetags-outline', label: 'Manage tags', value: '12 tags' },
   ];
   const museRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
-    { icon: 'sparkles-outline', label: 'AI behavior', value: providerCount ? `${providerCount} dev env` : 'Not connected' },
+    { icon: 'sparkles-outline', label: 'Muse API', value: hasApiProxy() ? 'Worker connected' : 'Not connected' },
     { icon: 'albums-outline', label: 'Gallery scanning', value: 'Disabled' },
     { icon: 'notifications-outline', label: 'Notifications', value: 'Off' },
   ];
@@ -178,7 +177,7 @@ export default function SettingsScreen() {
           </View>
           <AppButton label="Clear" onPress={confirmClearHistory} tone="quiet" />
         </Card>
-        <AppText variant="caption" style={styles.footnote}>Development keys load from local-secrets/.env and are bundled temporarily. Do not distribute this build.</AppText>
+        <AppText variant="caption" style={styles.footnote}>Provider credentials stay in the API Worker and are never bundled with this app.</AppText>
       </ScrollView>
     </SafeAreaView>
   );

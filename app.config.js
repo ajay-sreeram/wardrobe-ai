@@ -8,8 +8,7 @@ module.exports = ({ config }) => ({
   plugins: [...(config.plugins ?? []), 'expo-sharing'],
   extra: {
     ...config.extra,
-    // Development only: Expo embeds these values in the client bundle.
-    museApiKey: process.env.MUSE_API_KEY,
-    geminiApiKey: process.env.GEMINI_API_KEY,
+    // Public routing configuration only. Provider keys belong in the Worker.
+    apiBaseUrl: process.env.WARDROBE_API_BASE_URL,
   },
 });

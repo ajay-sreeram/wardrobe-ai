@@ -13,7 +13,7 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { StarterActions } from '@/components/chat/StarterActions';
 import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { developmentEnv } from '@/config/env';
+import { hasApiProxy } from '@/config/providers';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
@@ -87,14 +87,12 @@ export default function ChatScreen() {
       if (displayUserMessage) sendMessage(imageMessages, submittedText);
 
       if (submittedImages.length) {
-        if (!developmentEnv.geminiApiKey || !developmentEnv.museApiKey) {
-          addError('Image analysis needs MUSE_API_KEY and GEMINI_API_KEY in local-secrets/.env. Restart Expo after adding them.');
+        if (!hasApiProxy()) {
+          addError('Muse is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
           return;
         }
 
         const analysis = await coordinateImageObservation({
-          museApiKey: developmentEnv.museApiKey,
-          geminiApiKey: developmentEnv.geminiApiKey,
           db,
           images: submittedImages.map((image) => ({ uri: image.uri, mimeType: image.mimeType })),
           userMessage: submittedText,
@@ -150,12 +148,12 @@ export default function ChatScreen() {
         return;
       }
 
-      if (!developmentEnv.museApiKey) {
-        addError('Muse is not configured. Add MUSE_API_KEY to local-secrets/.env, then restart Expo with a cleared cache.');
+      if (!hasApiProxy()) {
+        addError('Muse is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
         return;
       }
 
-      const reply = await coordinateTextConversation(developmentEnv.museApiKey, db, submittedText, messages, setProgressText);
+      const reply = await coordinateTextConversation(db, submittedText, messages, setProgressText);
       addMessages([
         { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: reply.text },
         ...reply.outfitSuggestions.map((suggestion, index) => ({

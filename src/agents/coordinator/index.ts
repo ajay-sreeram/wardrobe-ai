@@ -47,22 +47,18 @@ function recentConversationContext(messages: ChatMessage[]) {
   return contextEntries.slice(-6).join('\n').slice(-3_000);
 }
 
-export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
-  const generatedJpeg = await generateCanonicalGarmentImage(geminiApiKey, sourceImage, garment);
+export async function coordinateGarmentImageGeneration(sourceImage: SelectedImage, garment: GarmentObservation) {
+  const generatedJpeg = await generateCanonicalGarmentImage(sourceImage, garment);
   const transparentPng = removeFlatBackgroundToPng(generatedJpeg);
   return saveGeneratedGarmentPreview(transparentPng, `preview-${Date.now()}`);
 }
 
 export async function coordinateImageObservation({
-  museApiKey,
-  geminiApiKey,
   db,
   images,
   userMessage,
   onProgress,
 }: {
-  museApiKey: string;
-  geminiApiKey: string;
   db: SQLiteDatabase;
   images: SelectedImage[];
   userMessage: string;
@@ -71,12 +67,12 @@ export async function coordinateImageObservation({
   onProgress?.('Understanding your request…');
   const localDate = localDateContext();
   const [plan, sections] = await Promise.all([
-    requestImageObservationPlan(museApiKey, userMessage, localDate),
+    requestImageObservationPlan(userMessage, localDate),
     listWardrobeSections(db),
   ]);
   if (!sections.length) throw new Error('Create a wardrobe section before adding a garment.');
   onProgress?.('Analyzing garment…');
-  const analysis = await analyzeGarmentImages(geminiApiKey, images, {
+  const analysis = await analyzeGarmentImages(images, {
     focusGarments: plan.focusGarments,
     intent: plan.intent,
     userMessage,
@@ -89,7 +85,7 @@ export async function coordinateImageObservation({
     const suggestedSection = sections.find((section) => section.name.toLocaleLowerCase() === garment.suggestedSectionName.toLocaleLowerCase()) ?? sections[0];
     onProgress?.('Checking wardrobe…');
     const candidates = await findPotentialDuplicateCandidates(db, garment);
-    const duplicate = await compareGarmentAgainstCandidates(geminiApiKey, sourceImage, garment, candidates);
+    const duplicate = await compareGarmentAgainstCandidates(sourceImage, garment, candidates);
 
     if (duplicate && duplicate.confidence >= 0.82) {
       garments.push({
@@ -107,14 +103,14 @@ export async function coordinateImageObservation({
     onProgress?.(`Generating wardrobe image ${index + 1} of ${analysis.garments.length}…`);
     garments.push({
       ...garment,
-      canonicalImageUri: await coordinateGarmentImageGeneration(geminiApiKey, sourceImage, garment),
+      canonicalImageUri: await coordinateGarmentImageGeneration(sourceImage, garment),
       suggestedSectionId: suggestedSection.id,
       suggestedSectionName: suggestedSection.name,
     });
   }
 
   onProgress?.('Putting it together…');
-  const presentation = await requestNaturalGarmentPresentation(museApiKey, {
+  const presentation = await requestNaturalGarmentPresentation({
     userMessage,
     rawNote: analysis.note,
     garments: garments.map((garment, index) => ({
@@ -147,10 +143,10 @@ export async function coordinateImageObservation({
   };
 }
 
-export async function coordinateTextConversation(apiKey: string, db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = [], onProgress?: (text: string) => void) {
+export async function coordinateTextConversation(db: SQLiteDatabase, userMessage: string, messages: ChatMessage[] = [], onProgress?: (text: string) => void) {
   onProgress?.('Reading your wardrobe context…');
   const [memory, wardrobe, archivedWardrobe, sections, wearHistory] = await Promise.all([readMemoryContext(), readWardrobeCatalog(db), readArchivedWardrobeCatalog(db), listWardrobeSections(db), readWardrobeWearHistory(db)]);
-  const reply = await requestWardrobeAwareReply(apiKey, userMessage, memory, wardrobe, archivedWardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages), onProgress);
+  const reply = await requestWardrobeAwareReply(userMessage, memory, wardrobe, archivedWardrobe, sections, wearHistory, localDateContext(), recentConversationContext(messages), onProgress);
   await forgetExplicitWardrobeFacts(reply.forgottenMemoryFacts).catch(() => undefined);
   await Promise.all([
     rememberConversation(userMessage, reply.answer),

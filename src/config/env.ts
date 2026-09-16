@@ -1,12 +1,11 @@
 import Constants from 'expo-constants';
 import { z } from 'zod';
 
-const developmentEnvSchema = z.object({
-  museApiKey: z.string().min(1).optional(),
-  geminiApiKey: z.string().min(1).optional(),
+const appEnvSchema = z.object({
+  apiBaseUrl: z.string().url().transform((value) => value.replace(/\/$/, '')).optional(),
 });
 
-const parsed = developmentEnvSchema.safeParse(Constants.expoConfig?.extra ?? {});
+const parsed = appEnvSchema.safeParse(Constants.expoConfig?.extra ?? {});
 
-// Development only. These values are embedded in the Expo client bundle.
-export const developmentEnv = parsed.success ? parsed.data : {};
+// This URL is public by design. Provider credentials are never included in Expo configuration.
+export const appEnv = parsed.success ? parsed.data : {};

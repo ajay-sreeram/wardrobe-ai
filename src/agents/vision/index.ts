@@ -99,7 +99,7 @@ function parseJsonObject(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-export async function analyzeGarmentImages(apiKey: string, images: VisionImage[], context: VisionContext) {
+export async function analyzeGarmentImages(images: VisionImage[], context: VisionContext) {
   try {
     const encodedImages = await Promise.all(images.map(async (image) => ({
       type: 'image',
@@ -116,7 +116,6 @@ export async function analyzeGarmentImages(apiKey: string, images: VisionImage[]
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
         model: providerConfig.gemini.model,
@@ -148,7 +147,7 @@ ${JSON.stringify(outputJsonSchema)}`,
 
     if (!response.ok) {
       if (response.status === 400) throw new VisionRequestError('Gemini could not analyze that image format. Try a JPEG or PNG.');
-      if (response.status === 401 || response.status === 403) throw new VisionRequestError('Gemini rejected GEMINI_API_KEY in local-secrets/.env.');
+      if (response.status === 401 || response.status === 403) throw new VisionRequestError('The API Worker could not authorize Gemini. Check its configured secrets.');
       if (response.status === 429) throw new VisionRequestError('Gemini is busy after three attempts. Please try again shortly.');
       if (response.status >= 500) throw new VisionRequestError('Gemini image analysis is temporarily unavailable after three attempts. Please try again later.');
       throw new VisionRequestError(`Gemini could not analyze the garment (${response.status}).`);
@@ -172,7 +171,7 @@ ${JSON.stringify(outputJsonSchema)}`,
   }
 }
 
-export async function generateCanonicalGarmentImage(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation) {
+export async function generateCanonicalGarmentImage(sourceImage: VisionImage, garment: GarmentObservation) {
   try {
     const visibleColors = [...garment.colors, ...garment.tags].join(' ').toLowerCase();
     const chromaBackground = visibleColors.includes('green') || visibleColors.includes('lime') ? '#FF00FF' : '#00FF00';
@@ -180,7 +179,6 @@ export async function generateCanonicalGarmentImage(apiKey: string, sourceImage:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
         model: providerConfig.gemini.model,
@@ -210,7 +208,7 @@ Output one complete, uncropped garment against a perfectly flat, single-color ${
     }, 90_000);
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new VisionRequestError('Gemini rejected GEMINI_API_KEY in local-secrets/.env.');
+      if (response.status === 401 || response.status === 403) throw new VisionRequestError('The API Worker could not authorize Gemini. Check its configured secrets.');
       if (response.status === 429) throw new VisionRequestError('Gemini is busy after three image-generation attempts. Please try again shortly.');
       if (response.status >= 500) throw new VisionRequestError('Gemini image generation is temporarily unavailable after three attempts. Please try again later.');
       throw new VisionRequestError(`Gemini could not generate the wardrobe image (${response.status}).`);
@@ -229,7 +227,7 @@ Output one complete, uncropped garment against a perfectly flat, single-color ${
   }
 }
 
-export async function compareGarmentAgainstCandidates(apiKey: string, sourceImage: VisionImage, garment: GarmentObservation, candidates: DuplicateCandidate[]) {
+export async function compareGarmentAgainstCandidates(sourceImage: VisionImage, garment: GarmentObservation, candidates: DuplicateCandidate[]) {
   if (!candidates.length) return null;
   try {
     const candidateInputs = await Promise.all(candidates.map(async (candidate) => [
@@ -238,7 +236,7 @@ export async function compareGarmentAgainstCandidates(apiKey: string, sourceImag
     ]));
     const response = await fetchWithRetry(`${providerConfig.gemini.baseUrl}/interactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: providerConfig.gemini.model,
         store: false,

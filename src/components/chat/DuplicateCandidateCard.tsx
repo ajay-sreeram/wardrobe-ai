@@ -9,7 +9,7 @@ import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
-import { developmentEnv } from '@/config/env';
+import { hasApiProxy } from '@/config/providers';
 import type { ChatMessage } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
@@ -56,15 +56,14 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
   }
 
   async function addAsNew() {
-    if (!developmentEnv.geminiApiKey) {
-      setError('Gemini is not configured.');
+    if (!hasApiProxy()) {
+      setError('Muse is not connected to the API Worker.');
       return;
     }
     setGenerating(true);
     setError(null);
     try {
       const canonicalImageUri = await coordinateGarmentImageGeneration(
-        developmentEnv.geminiApiKey,
         { uri: message.sourceImageUri, mimeType: message.sourceImageMimeType },
         {
           name: message.garmentName,

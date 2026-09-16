@@ -293,7 +293,6 @@ function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalo
 }
 
 async function gatherWardrobeReadContext(
-  apiKey: string,
   userMessage: string,
   wardrobe: WardrobeCatalogItem[],
   archivedWardrobe: WardrobeCatalogItem[],
@@ -311,7 +310,7 @@ async function gatherWardrobeReadContext(
   const completedQueries = new Set<string>();
   for (let round = 0; round < 3; round += 1) {
     onProgress?.(round ? 'Looking a little deeper…' : 'Understanding what you need…');
-    const response = await requestMuseContent(apiKey, [
+    const response = await requestMuseContent([
       {
         role: 'system',
         content: `Plan read-only local data queries for a wardrobe assistant. The device-local date is ${localDate.date} (${localDate.weekday}) in ${localDate.timeZone}.
@@ -368,12 +367,11 @@ or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","l
   return { wardrobeSummary: wardrobeSummary(wardrobe), timelineSummary, memorySummary, results };
 }
 
-async function requestMuseContent(apiKey: string, messages: { role: 'system' | 'user'; content: string }[], maxTokens: number) {
+async function requestMuseContent(messages: { role: 'system' | 'user'; content: string }[], maxTokens: number) {
   try {
     const response = await fetchWithRetry(`${providerConfig.muse.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -389,7 +387,7 @@ async function requestMuseContent(apiKey: string, messages: { role: 'system' | '
         throw new MuseRequestError('Muse could not process that request. Please rephrase it and try again.');
       }
       if (response.status === 401 || response.status === 403) {
-        throw new MuseRequestError('Muse rejected the API key. Update MUSE_API_KEY in local-secrets/.env.');
+        throw new MuseRequestError('The API Worker could not authorize Muse. Check its configured secrets.');
       }
       if (response.status === 429) {
         throw new MuseRequestError('Muse is busy after three attempts. Please try again shortly.');
@@ -418,7 +416,6 @@ function parseJsonObject(text: string) {
 }
 
 export async function requestWardrobeAwareReply(
-  apiKey: string,
   userMessage: string,
   memoryContext: string,
   wardrobe: WardrobeCatalogItem[],
@@ -431,7 +428,7 @@ export async function requestWardrobeAwareReply(
 ) {
   let readContext: unknown;
   try {
-    readContext = await gatherWardrobeReadContext(apiKey, userMessage, wardrobe, archivedWardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
+    readContext = await gatherWardrobeReadContext(userMessage, wardrobe, archivedWardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
   } catch (error) {
     if (error instanceof MuseRequestError) throw error;
     readContext = {
@@ -470,7 +467,7 @@ ${conversationContext}
 
   try {
     onProgress?.('Putting your answer together…');
-    const response = await requestMuseContent(apiKey, [
+    const response = await requestMuseContent([
       {
         role: 'system',
         content: `${wardrobeContext}
@@ -575,7 +572,7 @@ Use null for proposedAction when no local mutation should be proposed.
     };
   } catch (error) {
     if (error instanceof MuseRequestError) throw error;
-    const answer = await requestMuseContent(apiKey, [
+    const answer = await requestMuseContent([
       { role: 'system', content: `${wardrobeContext}\nAnswer the person's message naturally in plain text.` },
       { role: 'user', content: userMessage },
     ], 1024);
@@ -593,11 +590,11 @@ function validateWardrobeMutation(action: WardrobeMutation, garmentIds: Set<stri
   return wearIds.has(action.wearId);
 }
 
-export async function requestImageObservationPlan(apiKey: string, userMessage: string, localDate: LocalDateContext): Promise<ImageObservationPlan> {
+export async function requestImageObservationPlan(userMessage: string, localDate: LocalDateContext): Promise<ImageObservationPlan> {
   if (!userMessage.trim()) return { focusGarments: [], intent: 'Identify all clearly visible garments.', memoryFacts: [], wearContext: null };
 
   try {
-    const response = await requestMuseContent(apiKey, [
+    const response = await requestMuseContent([
       {
         role: 'system',
         content: `You coordinate wardrobe photo analysis. Infer which visible garments the user wants analyzed from their message.
@@ -615,9 +612,9 @@ Return only JSON in this shape: {"focusGarments":["garment type"],"intent":"shor
   }
 }
 
-export async function requestNaturalGarmentPresentation(apiKey: string, input: GarmentPresentationInput) {
+export async function requestNaturalGarmentPresentation(input: GarmentPresentationInput) {
   try {
-    const response = await requestMuseContent(apiKey, [
+    const response = await requestMuseContent([
       {
         role: 'system',
         content: `${coordinatorInstructions}

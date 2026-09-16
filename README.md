@@ -40,6 +40,7 @@ The app currently includes:
 - reusable rich garment-collection cards for Muse outfit suggestions, searches, and future grouped results
 - conversational outfit revisions that preserve unchanged pieces and learn only explicit, self-contained pairing feedback
 - chat-driven packing and capsule collections using the existing reusable recommendation cards
+- versioned local backup export and validated restore for wardrobe, Timeline, memory, safe Chat history, and generated garment images
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days
@@ -49,6 +50,8 @@ The app currently includes:
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
 The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. A selected photo appears as a small, expandable, session-only attachment in Chat. That temporary picker file is sent to Gemini for garment analysis and standardized image generation, but is never copied into app storage. Only Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
+
+Settings can export a versioned, readable JSON backup containing local wardrobe metadata, Timeline history, Markdown memory, safe Chat history, and generated garment images. Source photos and API keys are never included. Because the file contains personal data, it should be stored and shared privately. Restore validates the format and cross-record references before replacing local data.
 
 Before generating a new canonical image, the Wardrobe Agent shortlists at most two plausible existing garments using local metadata. Vision compares only those candidates and raises a duplicate review only for a conservative high-confidence match. Choosing “Use existing” avoids image generation and database duplication; choosing “Add as new” resumes canonical generation.
 

@@ -5,6 +5,7 @@ loadEnv({ path: path.join(__dirname, 'local-secrets', '.env'), quiet: true });
 
 module.exports = ({ config }) => ({
   ...config,
+  plugins: [...(config.plugins ?? []), 'expo-sharing'],
   extra: {
     ...config.extra,
     // Development only: Expo embeds these values in the client bundle.

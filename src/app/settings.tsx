@@ -2,7 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useState } from 'react';
 
+import { chooseWardrobeBackup, createWardrobeBackup, restoreWardrobeBackup, type WardrobeBackup } from '@/backup';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
 import { Card } from '@/components/ui/Card';
@@ -12,7 +15,10 @@ import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const clearHistory = useChatStore((state) => state.clearHistory);
+  const hydrateHistory = useChatStore((state) => state.hydrateHistory);
+  const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
   const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
 
   const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
@@ -33,6 +39,49 @@ export default function SettingsScreen() {
         { text: 'Clear history', style: 'destructive', onPress: clearHistory },
       ],
     );
+  }
+
+  async function exportBackup() {
+    setBackupBusy('export');
+    try {
+      const result = await createWardrobeBackup(db);
+      Alert.alert('Backup ready', `Exported ${result.garmentCount} garments and ${result.wearCount} Timeline entries.`);
+    } catch (cause) {
+      Alert.alert('Could not export backup', cause instanceof Error ? cause.message : 'Please try again.');
+    } finally {
+      setBackupBusy(null);
+    }
+  }
+
+  async function restoreSelectedBackup(backup: WardrobeBackup) {
+    setBackupBusy('restore');
+    try {
+      await restoreWardrobeBackup(db, backup);
+      await hydrateHistory();
+      Alert.alert('Backup restored', 'Wardrobe, Timeline, memory, Chat history, and generated images are restored.');
+    } catch (cause) {
+      Alert.alert('Could not restore backup', cause instanceof Error ? cause.message : 'Please keep the app open and try again.');
+    } finally {
+      setBackupBusy(null);
+    }
+  }
+
+  async function chooseBackup() {
+    try {
+      const backup = await chooseWardrobeBackup();
+      if (!backup) return;
+      const created = new Date(backup.createdAt).toLocaleString();
+      Alert.alert(
+        'Replace local wardrobe data?',
+        `Backup from ${created}\n${backup.garments.length} garments · ${backup.wears.length} Timeline entries\n\nThis replaces the current local wardrobe, Timeline, memory, and Chat history.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Restore backup', style: 'destructive', onPress: () => { void restoreSelectedBackup(backup); } },
+        ],
+      );
+    } catch (cause) {
+      Alert.alert('Could not read backup', cause instanceof Error ? cause.message : 'Choose a valid Wardrobe backup.');
+    }
   }
   return (
     <SafeAreaView style={styles.safe}>
@@ -72,6 +121,17 @@ export default function SettingsScreen() {
             <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
           </Card>
         </Pressable>
+        <Card style={styles.dataCard}>
+          <View>
+            <AppText variant="label">Local backup</AppText>
+            <AppText variant="caption" style={styles.muted}>Portable wardrobe, Timeline, memory, Chat, and generated garment images.</AppText>
+            <AppText variant="caption" style={styles.warning}>Backups are readable files containing personal data. Store them privately.</AppText>
+          </View>
+          <View style={styles.backupActions}>
+            <AppButton disabled={backupBusy !== null} label="Export backup" loading={backupBusy === 'export'} onPress={() => { void exportBackup(); }} style={styles.flex} />
+            <AppButton disabled={backupBusy !== null} label="Restore backup" loading={backupBusy === 'restore'} onPress={() => { void chooseBackup(); }} tone="secondary" style={styles.flex} />
+          </View>
+        </Card>
         <Card style={styles.chatCard}>
           <View style={styles.flex}>
             <AppText variant="label">Chat history</AppText>
@@ -95,8 +155,11 @@ const styles = StyleSheet.create({
   localCard: { alignItems: 'center', backgroundColor: colors.mossSoft, flexDirection: 'row', gap: spacing.md },
   localIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 23, height: 46, justifyContent: 'center', width: 46 },
   muted: { color: colors.inkMuted },
+  warning: { color: colors.clay, marginTop: spacing.xs },
   group: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', paddingHorizontal: spacing.md },
   chatCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+  dataCard: { gap: spacing.md },
+  backupActions: { flexDirection: 'row', gap: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 58 },
   rowBorder: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
   footnote: { color: colors.inkMuted, paddingHorizontal: spacing.sm, textAlign: 'center' },

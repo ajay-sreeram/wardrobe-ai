@@ -119,9 +119,6 @@ export default {
 
     let rawBody: string;
     let body!: Record<string, unknown>;
-    const securedBody = route.prepareBody(body, route.model);
-    if (!securedBody) return jsonResponse({ error: 'Invalid request shape.' }, 400, corsOrigin);
-
     try {
       rawBody = await request.text();
       if (new TextEncoder().encode(rawBody).byteLength > maximumBodyBytes) {
@@ -133,6 +130,9 @@ export default {
     } catch {
       return jsonResponse({ error: 'A JSON object is required.' }, 400, corsOrigin);
     }
+
+    const securedBody = route.prepareBody(body, route.model);
+    if (!securedBody) return jsonResponse({ error: 'Invalid request shape.' }, 400, corsOrigin);
 
     try {
       const upstream = await fetch(route.upstream, {

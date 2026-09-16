@@ -77,6 +77,11 @@ export default function WardrobeScreen() {
     router.push('/(tabs)/chat');
   }
 
+  function askMuseForInsights() {
+    setDraft('Give me a few useful wardrobe insights based on what I own, what I wear, and my saved preferences.');
+    router.push('/(tabs)/chat');
+  }
+
   async function finishGarmentDrag(sectionId: string, garments: WardrobeSection['garments']) {
     setSections((current) => current.map((section) => section.id === sectionId ? { ...section, garments } : section));
     try {
@@ -114,6 +119,17 @@ export default function WardrobeScreen() {
           <AppText variant="label" style={viewMode === 'grid' ? styles.viewOptionTextSelected : styles.viewOptionText}>All pieces</AppText>
         </Pressable>
       </View>
+
+      {garmentCount ? (
+        <Pressable accessibilityHint="Opens Chat with a wardrobe check-in ready" accessibilityRole="button" onPress={askMuseForInsights} style={({ pressed }) => [styles.insightPrompt, pressed && styles.insightPromptPressed]}>
+          <View style={styles.introIcon}><Ionicons color={colors.clay} name="analytics-outline" size={22} /></View>
+          <View style={styles.flex}>
+            <AppText variant="label">Ask Muse for a wardrobe check-in</AppText>
+            <AppText variant="caption" style={styles.muted}>Explore wear patterns, pairings, and pieces worth rediscovering.</AppText>
+          </View>
+          <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
+        </Pressable>
+      ) : null}
 
       {viewMode === 'sections' ? <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!garmentCount ? (
@@ -237,6 +253,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { paddingBottom: spacing.xl },
   flex: { flex: 1 },
   intro: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginHorizontal: spacing.lg, padding: spacing.md },
+  insightPrompt: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, marginHorizontal: spacing.lg, padding: spacing.sm },
+  insightPromptPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
   introIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   muted: { color: colors.inkMuted },
   hint: { color: colors.inkMuted, marginBottom: spacing.md, marginHorizontal: spacing.lg },

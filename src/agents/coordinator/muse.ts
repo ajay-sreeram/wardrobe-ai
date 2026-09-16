@@ -61,6 +61,12 @@ const wardrobeConversationSchema = z.object({
     reason: z.string().trim().min(1).max(240),
     garmentIds: z.array(z.string().min(1)).min(1).max(12),
   })).max(3).default([]),
+  wardrobeInsights: z.array(z.object({
+    kind: z.enum(['rediscovery', 'rotation', 'pairing', 'habit']),
+    title: z.string().trim().min(1).max(80),
+    summary: z.string().trim().min(1).max(240),
+    garmentIds: z.array(z.string().min(1)).min(1).max(8),
+  })).max(3).default([]),
   memoryFacts: z.array(z.string().min(1).max(240)).max(4),
   forgottenMemoryFacts: z.array(z.string().min(1).max(240)).max(4).default([]),
   proposedWear: z.object({
@@ -316,6 +322,9 @@ by sort or date. Search matches garment names, sections, descriptions, and tags.
 when useful. Timeline queries can filter dates, text, and garments worn together. Search memory when a preference, personal
 term, prior reason, or correction may matter. Durable memory contains preferences and personal terminology; recent memory
 contains a short activity trail. Return no more data than necessary.
+For a wardrobe check-in or request for proactive insights, let the model investigate rather than applying fixed rules: query
+the wardrobe, Timeline, and memory as needed to find evidence-backed rediscovery, rotation, pairing, or habit observations.
+Broad empty-query reads are allowed when the person asks for an overview. Do not manufacture patterns from summaries alone.
 For a follow-up that swaps one piece in a recent outfit option, preserve its other exact IDs from recent_conversation and
 query only plausible replacements matching the new constraint. The first, second, or last look refers to the displayed order
 of the most recent consecutive outfit options. Search memory when explicit feedback may reinforce or correct a preference.
@@ -476,6 +485,12 @@ preferences and dress requirements, and use wear history to rediscover suitable 
 in reason. If trip length, occasion, dress code, or expected weather is essential and missing, ask one question instead of guessing.
 Do not repeat outfit-suggestion IDs in the top-level garmentIds; reserve garmentIds for searches, lists, and comparisons.
 When outfitSuggestions is non-empty, keep answer to one short introduction and do not repeat the garment names or reasons there.
+When the person asks for a wardrobe check-in, analysis, useful patterns, neglected pieces, rotation help, or similar proactive
+guidance, return up to three distinct wardrobeInsights. Each insight must be grounded in the supplied wardrobe, Timeline, or
+memory query results, name a practical takeaway in summary, and reference the exact relevant owned garment IDs. Choose the
+kind semantically: rediscovery for neglected pieces, rotation for balancing use, pairing for combinations, and habit for a
+broader repeated preference or behavior. Never imply that a sparse Timeline proves a stable habit. Do not add insights to
+ordinary lookup, edit, logging, or unrelated requests. When wardrobeInsights is non-empty, keep answer to one short introduction.
 For a revision such as “change the top,” “make the second look more casual,” or “not those trousers,” resolve the referenced
 look from the most recent consecutive outfit options in displayed order. Preserve every unchanged garment ID and return the
 complete revised outfit, not only the replacement. If the look or piece is genuinely ambiguous, ask one concise question.
@@ -521,7 +536,7 @@ proposedAction must be null or exactly one of these JSON shapes:
 {"type":"update_wear","wearId":"exact-id","garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"full resulting note"}
 {"type":"delete_wear","wearId":"exact-id"}
 Return JSON only in this exact shape:
-{"answer":"natural direct response","garmentIds":["exact-id"],"outfitSuggestions":[{"kind":"outfit|packing|capsule","title":"short recommendation name","reason":"why it fits","garmentIds":["exact-id"]}],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
+{"answer":"natural direct response","garmentIds":["exact-id"],"outfitSuggestions":[{"kind":"outfit|packing|capsule","title":"short recommendation name","reason":"why it fits","garmentIds":["exact-id"]}],"wardrobeInsights":[{"kind":"rediscovery|rotation|pairing|habit","title":"short insight","summary":"evidence-backed practical takeaway","garmentIds":["exact-id"]}],"memoryFacts":["explicit durable fact"],"forgottenMemoryFacts":["exact old fact to forget"],"proposedWear":{"garmentIds":["exact-id"],"wornAt":"YYYY-MM-DD","note":"explicit context and reason, or empty"},"proposedAction":{"type":"one available action","fields":"for that action"}}.
 Use null for proposedWear when no wear record should be proposed.
 Use null for proposedAction when no local mutation should be proposed.
 `,
@@ -544,12 +559,17 @@ Use null for proposedAction when no local mutation should be proposed.
       const garmentIds = [...new Set(suggestion.garmentIds)];
       return garmentIds.length && garmentIds.every((id) => knownIds.has(id)) ? [{ ...suggestion, garmentIds }] : [];
     });
+    const wardrobeInsights = parsed.wardrobeInsights.flatMap((insight) => {
+      const garmentIds = [...new Set(insight.garmentIds)];
+      return garmentIds.length && garmentIds.every((id) => knownIds.has(id)) ? [{ ...insight, garmentIds }] : [];
+    });
     return {
       answer: parsed.answer,
       garmentIds: [...new Set(parsed.garmentIds)].filter((id) => knownIds.has(id)),
       memoryFacts: parsed.memoryFacts,
       forgottenMemoryFacts: parsed.forgottenMemoryFacts,
       outfitSuggestions,
+      wardrobeInsights,
       proposedWear,
       proposedAction: proposedWear ? null : proposedAction,
     };
@@ -559,7 +579,7 @@ Use null for proposedAction when no local mutation should be proposed.
       { role: 'system', content: `${wardrobeContext}\nAnswer the person's message naturally in plain text.` },
       { role: 'user', content: userMessage },
     ], 1024);
-    return { answer, garmentIds: [], outfitSuggestions: [], memoryFacts: [], forgottenMemoryFacts: [], proposedWear: null, proposedAction: null };
+    return { answer, garmentIds: [], outfitSuggestions: [], wardrobeInsights: [], memoryFacts: [], forgottenMemoryFacts: [], proposedWear: null, proposedAction: null };
   }
 }
 

@@ -6,6 +6,7 @@ export type PersistedChatMessage = Extract<ChatMessage,
   | { kind: 'conversation_boundary' }
   | { kind: 'wardrobe_results' }
   | { kind: 'outfit_suggestion' }
+  | { kind: 'wardrobe_insight' }
   | { kind: 'wear_status' }
   | { kind: 'action_status' }
 >;

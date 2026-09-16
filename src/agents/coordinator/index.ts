@@ -37,13 +37,14 @@ function recentConversationContext(messages: ChatMessage[]) {
     if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
     if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
     if (message.kind === 'outfit_suggestion') return [`Assistant ${message.suggestionKind ?? 'outfit'} option (in displayed order), ${message.title}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(' + ')}; reason: ${message.reason}`];
+    if (message.kind === 'wardrobe_insight') return [`Assistant insight, ${message.title}: ${message.summary}; garments: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
     if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
     if (message.kind === 'wear_status') return [`Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
     if (message.kind === 'action_confirmation') return [`Pending local change awaiting confirmation: ${message.description}`];
     if (message.kind === 'action_status') return [`Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
     return [];
   });
-  return contextEntries.slice(-12).join('\n').slice(-6_000);
+  return contextEntries.slice(-6).join('\n').slice(-3_000);
 }
 
 export async function coordinateGarmentImageGeneration(geminiApiKey: string, sourceImage: SelectedImage, garment: GarmentObservation) {
@@ -170,6 +171,15 @@ export async function coordinateTextConversation(apiKey: string, db: SQLiteDatab
       title: suggestion.title,
       reason: suggestion.reason,
       garments: suggestion.garmentIds.flatMap((id) => {
+        const garment = byId.get(id);
+        return garment ? [garment] : [];
+      }),
+    })),
+    wardrobeInsights: reply.wardrobeInsights.map((insight) => ({
+      insightKind: insight.kind,
+      title: insight.title,
+      summary: insight.summary,
+      garments: insight.garmentIds.flatMap((id) => {
         const garment = byId.get(id);
         return garment ? [garment] : [];
       }),

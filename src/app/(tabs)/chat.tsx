@@ -163,6 +163,11 @@ export default function ChatScreen() {
           kind: 'outfit_suggestion' as const,
           ...suggestion,
         })),
+        ...reply.wardrobeInsights.map((insight, index) => ({
+          id: `wardrobe-insight-${Date.now()}-${index}`,
+          kind: 'wardrobe_insight' as const,
+          ...insight,
+        })),
         ...(reply.garments.length ? [{ id: `wardrobe-results-${Date.now()}`, kind: 'wardrobe_results' as const, garments: reply.garments }] : []),
         ...(reply.wearProposal ? [{
           id: `wear-confirmation-${Date.now()}`,

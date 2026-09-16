@@ -19,10 +19,10 @@ const starters = [
     prompt: "Show me something I haven't worn recently and help me style it.",
   },
   {
-    icon: 'shirt-outline' as const,
-    title: 'Explore my wardrobe',
-    subtitle: 'See a useful overview of what I own',
-    prompt: 'Give me a quick, useful overview of my wardrobe and show me a few pieces worth revisiting.',
+    icon: 'analytics-outline' as const,
+    title: 'Wardrobe check-in',
+    subtitle: 'Find useful patterns and forgotten pieces',
+    prompt: 'Give me a few useful wardrobe insights based on what I own, what I wear, and my saved preferences.',
   },
   {
     icon: 'today-outline' as const,

@@ -9,6 +9,7 @@ import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { OutfitSuggestionCard } from '@/components/chat/OutfitSuggestionCard';
 import { WardrobeResultsCard } from '@/components/chat/WardrobeResultsCard';
 import { WearConfirmationCard } from '@/components/chat/WearConfirmationCard';
+import { WardrobeInsightCard } from '@/components/chat/WardrobeInsightCard';
 import { AppText } from '@/components/ui/AppText';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
@@ -32,6 +33,7 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
   if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'wardrobe_results') return <WardrobeResultsCard garments={message.garments} />;
   if (message.kind === 'outfit_suggestion') return <OutfitSuggestionCard message={message} />;
+  if (message.kind === 'wardrobe_insight') return <WardrobeInsightCard message={message} />;
   if (message.kind === 'wear_confirmation') return <WearConfirmationCard message={message} />;
   if (message.kind === 'action_confirmation') return <ActionConfirmationCard message={message} />;
   if (message.kind === 'action_status') {

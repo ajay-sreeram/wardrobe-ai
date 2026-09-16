@@ -23,7 +23,13 @@ export function GarmentCollectionCard({ description, eyebrow, garments, title }:
       {title ? <AppText variant="heading">{title}</AppText> : null}
       <ScrollView horizontal contentContainerStyle={styles.rail} showsHorizontalScrollIndicator={false}>
         {garments.map((garment) => (
-          <Pressable accessibilityHint="Opens garment details" accessibilityRole="button" key={garment.id} onPress={() => router.push(`/garment/${garment.id}`)} style={({ pressed }) => [styles.garment, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityHint="Opens the full garment image and editable details"
+            accessibilityLabel={`View ${garment.name}`}
+            accessibilityRole="button"
+            key={garment.id}
+            onPress={() => router.push({ pathname: '/garment/[id]', params: { id: garment.id } })}
+            style={({ pressed }) => [styles.garment, pressed && styles.pressed]}>
             <View style={styles.imageWrap}>
               {garment.canonicalImage ? (
                 <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.image} />

@@ -71,7 +71,12 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
   }
   return (
     <Card style={styles.card}>
-      <ExpandableImage badge="Generated wardrobe image" style={styles.preview} uri={canonicalImageUri} />
+      <ExpandableImage
+        badge="View garment details"
+        details={{ name: garmentName, sectionName: suggestedSectionName, description, tags }}
+        style={styles.preview}
+        uri={canonicalImageUri}
+      />
       <AppText variant="caption" style={styles.eyebrow}>Review suggested garment</AppText>
       <AppText variant="heading">{title}</AppText>
       <AppText style={styles.muted}>{description}</AppText>

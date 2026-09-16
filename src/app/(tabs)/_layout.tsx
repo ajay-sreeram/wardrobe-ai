@@ -17,8 +17,8 @@ export default function TabLayout() {
         headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.moss,
-        tabBarInactiveTintColor: '#858A84',
-        tabBarStyle: { backgroundColor: 'rgba(255,255,255,0.96)', borderTopColor: colors.line, height: 88, paddingBottom: 24, paddingTop: 8 },
+        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 88, paddingBottom: 24, paddingTop: 8 },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color, focused, size }) => {
           const pair = icons[route.name as keyof typeof icons];

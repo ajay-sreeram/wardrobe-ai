@@ -9,8 +9,10 @@ import { chooseWardrobeBackup, createWardrobeBackup, restoreWardrobeBackup, type
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
 import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
 import { developmentEnv } from '@/config/env';
 import { useChatStore } from '@/state/chat';
+import { useThemeStore, type ThemePreference } from '@/state/theme';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function SettingsScreen() {
@@ -18,6 +20,8 @@ export default function SettingsScreen() {
   const db = useSQLiteContext();
   const clearHistory = useChatStore((state) => state.clearHistory);
   const hydrateHistory = useChatStore((state) => state.hydrateHistory);
+  const themePreference = useThemeStore((state) => state.preference);
+  const setThemePreference = useThemeStore((state) => state.setPreference);
   const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
   const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
 
@@ -95,6 +99,21 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
+        <Card style={styles.themeCard}>
+          <View>
+            <AppText variant="label">Appearance</AppText>
+            <AppText variant="caption" style={styles.muted}>Follow this iPhone or keep Muse in your preferred theme.</AppText>
+          </View>
+          <View accessibilityRole="radiogroup" style={styles.themeOptions}>
+            {([
+              ['system', 'Phone'],
+              ['light', 'Light'],
+              ['dark', 'Dark'],
+            ] as [ThemePreference, string][]).map(([value, label]) => (
+              <Chip key={value} label={label} onPress={() => setThemePreference(value)} selected={themePreference === value} />
+            ))}
+          </View>
+        </Card>
         <Card style={styles.localCard}>
           <View style={styles.localIcon}><Ionicons color={colors.moss} name="phone-portrait-outline" size={22} /></View>
           <View style={styles.flex}>
@@ -152,6 +171,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.clay, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
   close: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   content: { gap: spacing.lg, padding: spacing.lg },
+  themeCard: { gap: spacing.md },
+  themeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   localCard: { alignItems: 'center', backgroundColor: colors.mossSoft, flexDirection: 'row', gap: spacing.md },
   localIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 23, height: 46, justifyContent: 'center', width: 46 },
   muted: { color: colors.inkMuted },

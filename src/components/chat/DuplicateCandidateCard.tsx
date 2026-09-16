@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -16,6 +17,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 type DuplicateMessage = Extract<ChatMessage, { kind: 'duplicate' }>;
 
 export function DuplicateCandidateCard({ message }: { message: DuplicateMessage }) {
+  const router = useRouter();
   const db = useSQLiteContext();
   const replaceMessage = useChatStore((state) => state.replaceMessage);
   const [choice, setChoice] = useState(false);
@@ -107,7 +109,13 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
 
   return (
     <Card style={styles.card}>
-      <ExpandableImage badge="Existing wardrobe item" style={styles.preview} uri={message.existingImageUri} />
+      <ExpandableImage
+        badge="View full details"
+        details={{ name: message.existingGarmentName, description: message.matchReason }}
+        onPress={() => router.push({ pathname: '/garment/[id]', params: { id: message.existingGarmentId } })}
+        style={styles.preview}
+        uri={message.existingImageUri}
+      />
       <AppText variant="caption" style={styles.eyebrow}>Close wardrobe match</AppText>
       <AppText variant="heading">Could this be your {message.existingGarmentName}?</AppText>
       <AppText style={styles.muted}>{message.matchReason}</AppText>

@@ -80,7 +80,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   user: { alignSelf: 'flex-end', backgroundColor: colors.moss, borderBottomRightRadius: 5 },
   assistant: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 5 },
   userText: { color: colors.surface },
-  imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
+  imageBubble: { alignSelf: 'flex-end', backgroundColor: colors.garmentCanvasMuted, borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
   error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.claySoft, borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   errorText: { color: colors.danger, flex: 1 },
   retry: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 10, paddingVertical: 7 },

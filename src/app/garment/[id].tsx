@@ -190,7 +190,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   eyebrow: { color: colors.clay, letterSpacing: 0.8, textTransform: 'uppercase' },
   close: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   content: { gap: spacing.lg, paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
-  imageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.lg, height: 320, justifyContent: 'center', overflow: 'hidden' },
+  imageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderRadius: radius.lg, height: 320, justifyContent: 'center', overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   field: { gap: spacing.sm },
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 12 },

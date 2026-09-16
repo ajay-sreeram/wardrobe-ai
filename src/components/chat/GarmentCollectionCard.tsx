@@ -55,7 +55,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   rail: { gap: spacing.sm },
   garment: { gap: 4, width: 112 },
-  imageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 142, justifyContent: 'center', overflow: 'hidden' },
+  imageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderRadius: radius.sm, height: 142, justifyContent: 'center', overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   muted: { color: colors.inkMuted },
   description: { color: colors.inkMuted, lineHeight: 21 },

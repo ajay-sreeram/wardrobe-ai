@@ -87,7 +87,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   rail: { gap: spacing.sm },
   garment: { gap: spacing.xs, width: 104 },
-  imageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 124, justifyContent: 'center', overflow: 'hidden' },
+  imageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderRadius: radius.sm, height: 124, justifyContent: 'center', overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   note: { color: colors.inkMuted },
   actions: { flexDirection: 'row', gap: spacing.sm },

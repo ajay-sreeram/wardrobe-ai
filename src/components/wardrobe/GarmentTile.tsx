@@ -35,7 +35,7 @@ export function GarmentTile({ garment, compact = false, grid = false, active = f
       onLongPress={onLongPress}
       onPress={onPress}
       style={({ pressed }) => [styles.card, compact && styles.compactCard, grid && styles.gridCard, organizing && styles.organizing, (pressed || active) && (onPress || onLongPress) && styles.pressed, active && styles.active]}>
-      <View style={[styles.image, compact && styles.compactImage, grid && styles.gridImage, { backgroundColor: garment.canonicalImage ? '#F2F0EA' : swatch }]}>
+      <View style={[styles.image, compact && styles.compactImage, grid && styles.gridImage, { backgroundColor: garment.canonicalImage ? colors.garmentCanvas : swatch }]}>
         {garment.canonicalImage ? (
           <Image contentFit="contain" source={{ uri: garment.canonicalImage }} style={styles.canonicalImage} />
         ) : (

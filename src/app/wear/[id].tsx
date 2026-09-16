@@ -183,7 +183,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pieceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   piece: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, overflow: 'hidden', width: '31%' },
   pieceSelected: { borderColor: colors.moss, borderWidth: 2 },
-  pieceImageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', height: 96, justifyContent: 'center' },
+  pieceImageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, height: 96, justifyContent: 'center' },
   pieceImage: { height: '100%', width: '100%' },
   pieceName: { minHeight: 48, padding: spacing.xs, textAlign: 'center' },
   check: { alignItems: 'center', backgroundColor: colors.moss, borderRadius: 13, height: 26, justifyContent: 'center', position: 'absolute', right: spacing.xs, top: spacing.xs, width: 26 },

@@ -168,7 +168,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   selectedSection: { alignSelf: 'center', gap: spacing.sm, maxWidth: 560, width: '100%' },
   outfitCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, padding: spacing.sm },
   outfitImages: { alignItems: 'center', flexDirection: 'row' },
-  outfitImageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', borderColor: colors.surface, borderRadius: radius.sm, borderWidth: 2, height: 52, justifyContent: 'center', marginRight: -10, overflow: 'hidden', width: 44 },
+  outfitImageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderColor: colors.surface, borderRadius: radius.sm, borderWidth: 2, height: 52, justifyContent: 'center', marginRight: -10, overflow: 'hidden', width: 44 },
   outfitImage: { height: '100%', width: '100%' },
   more: { color: colors.inkMuted, marginLeft: spacing.sm },
   outfitCopy: { flex: 1, gap: 2 },

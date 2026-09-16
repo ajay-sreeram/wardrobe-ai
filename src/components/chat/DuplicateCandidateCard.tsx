@@ -134,7 +134,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
-  preview: { backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220 },
+  preview: { backgroundColor: colors.garmentCanvas, borderRadius: radius.sm, height: 220 },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   muted: { color: colors.inkMuted },
   actions: { flexDirection: 'row', gap: spacing.sm },

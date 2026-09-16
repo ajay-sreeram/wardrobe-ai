@@ -101,7 +101,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
-  preview: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220, justifyContent: 'center', overflow: 'hidden' },
+  preview: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderRadius: radius.sm, height: 220, justifyContent: 'center', overflow: 'hidden' },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   muted: { color: colors.inkMuted },
   nameRow: { gap: spacing.sm, paddingVertical: spacing.xs },

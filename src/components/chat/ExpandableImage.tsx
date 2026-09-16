@@ -79,7 +79,7 @@ export function ExpandableImage({ uri, style, badge = 'Tap to view', details, on
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  preview: { backgroundColor: '#E8E7E2', overflow: 'hidden' },
+  preview: { backgroundColor: colors.garmentCanvasMuted, overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   badge: { alignItems: 'center', backgroundColor: 'rgba(30,33,30,0.72)', borderRadius: radius.pill, bottom: spacing.sm, flexDirection: 'row', gap: 5, left: spacing.sm, paddingHorizontal: 9, paddingVertical: 5, position: 'absolute' },
   badgeText: { color: colors.surface },
@@ -87,7 +87,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   modalBackdrop: { backgroundColor: colors.background, bottom: 0, left: 0, opacity: 0.97, position: 'absolute', right: 0, top: 0 },
   modalCard: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.lg, borderWidth: 1, maxHeight: '90%', overflow: 'hidden', width: '100%' },
   imageOnlyCard: { height: '82%' },
-  fullImageWrap: { backgroundColor: '#F2F0EA', height: 430, width: '100%' },
+  fullImageWrap: { backgroundColor: colors.garmentCanvas, height: 430, width: '100%' },
   imageOnlyWrap: { flex: 1, height: undefined },
   details: { gap: spacing.md, padding: spacing.lg },
   detailsHeading: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },

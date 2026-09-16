@@ -101,7 +101,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { gap: spacing.md, padding: spacing.lg },
   empty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: 64 },
   card: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, padding: spacing.sm },
-  imageWrap: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 112, justifyContent: 'center', overflow: 'hidden', width: 92 },
+  imageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, borderRadius: radius.sm, height: 112, justifyContent: 'center', overflow: 'hidden', width: 92 },
   image: { height: '100%', width: '100%' },
   copy: { flex: 1, gap: spacing.xs },
   restore: { alignSelf: 'flex-start', marginTop: spacing.xs, minHeight: 38 },

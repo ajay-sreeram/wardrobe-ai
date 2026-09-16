@@ -1,4 +1,3 @@
-import { Appearance } from 'react-native';
 import { create } from 'zustand';
 
 import { readThemePreference, writeThemePreference } from '@/storage/themePreference';
@@ -11,19 +10,13 @@ type ThemeState = {
   setPreference: (preference: ThemePreference) => void;
 };
 
-function applyPreference(preference: ThemePreference) {
-  Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
-}
-
 export const useThemeStore = create<ThemeState>((set) => ({
   preference: 'system',
   hydrate: async () => {
     const preference = await readThemePreference() ?? 'system';
-    applyPreference(preference);
     set({ preference });
   },
   setPreference: (preference) => {
-    applyPreference(preference);
     writeThemePreference(preference);
     set({ preference });
   },

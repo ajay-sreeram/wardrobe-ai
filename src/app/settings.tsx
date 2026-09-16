@@ -13,9 +13,12 @@ import { Chip } from '@/components/ui/Chip';
 import { developmentEnv } from '@/config/env';
 import { useChatStore } from '@/state/chat';
 import { useThemeStore, type ThemePreference } from '@/state/theme';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 export default function SettingsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const db = useSQLiteContext();
   const clearHistory = useChatStore((state) => state.clearHistory);
@@ -164,7 +167,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   header: { alignItems: 'center', flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   flex: { flex: 1 },

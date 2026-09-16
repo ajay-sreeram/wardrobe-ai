@@ -5,11 +5,14 @@ import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import { GarmentTile } from '@/components/wardrobe/GarmentTile';
 import type { WearEntry } from '@/models/wardrobe';
-import { colors, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { spacing, type ThemeColors } from '@/theme/tokens';
 
 const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' });
 
 export function WearCard({ entry, showLine, onPress }: { entry: WearEntry; showLine: boolean; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const date = new Date(`${entry.wornAt}T12:00:00`);
   return (
     <View style={styles.row}>
@@ -38,7 +41,7 @@ export function WearCard({ entry, showLine, onPress }: { entry: WearEntry; showL
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   markerColumn: { alignItems: 'center', width: 16 },
   marker: { backgroundColor: colors.clay, borderColor: colors.claySoft, borderRadius: 7, borderWidth: 4, height: 14, marginTop: 3, width: 14 },

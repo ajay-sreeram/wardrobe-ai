@@ -15,7 +15,8 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { GarmentTile } from '@/components/wardrobe/GarmentTile';
 import { getWardrobeSections } from '@/database/repository';
 import type { WardrobeSection } from '@/models/wardrobe';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 import { useChatStore } from '@/state/chat';
 
 type GridSort = 'wardrobe' | 'least-worn' | 'oldest-worn' | 'newest' | 'name';
@@ -29,6 +30,8 @@ const gridSorts: { id: GridSort; label: string }[] = [
 ];
 
 export default function WardrobeScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -224,7 +227,7 @@ export default function WardrobeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   viewSwitch: { backgroundColor: colors.surfaceMuted, borderRadius: radius.pill, flexDirection: 'row', marginBottom: spacing.md, marginHorizontal: spacing.lg, padding: 4 },
   viewOption: { alignItems: 'center', borderRadius: radius.pill, flex: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 40 },
@@ -239,7 +242,7 @@ const styles = StyleSheet.create({
   hint: { color: colors.inkMuted, marginBottom: spacing.md, marginHorizontal: spacing.lg },
   organizingHint: { backgroundColor: colors.claySoft, borderRadius: radius.sm, color: colors.clay, padding: spacing.sm },
   section: { gap: spacing.sm, marginBottom: spacing.xl },
-  sectionOrganizing: { backgroundColor: 'rgba(241,223,214,0.42)', borderColor: colors.clay, borderRadius: radius.md, borderWidth: 1, marginHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  sectionOrganizing: { backgroundColor: colors.claySoft, borderColor: colors.clay, borderRadius: radius.md, borderWidth: 1, marginHorizontal: spacing.sm, paddingVertical: spacing.sm },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   sectionHeaderOrganizing: { paddingHorizontal: spacing.md },
   sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },

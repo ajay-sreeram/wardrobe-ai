@@ -6,7 +6,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import type { WearEntry } from '@/models/wardrobe';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' });
@@ -22,6 +23,8 @@ function dateKey(year: number, month: number, day: number) {
 }
 
 function OutfitRow({ entry, onPress }: { entry: WearEntry; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable accessibilityHint="View or correct this outfit" accessibilityLabel={entry.garments.map((garment) => garment.name).join(' and ')} accessibilityRole="button" onPress={onPress}>
       {({ pressed }) => (
@@ -46,6 +49,8 @@ function OutfitRow({ entry, onPress }: { entry: WearEntry; onPress: () => void }
 }
 
 export function TimelineCalendar({ entries, onOpenEntry }: { entries: WearEntry[]; onOpenEntry: (entry: WearEntry) => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const initialized = useRef(false);
   const today = new Date();
   const [visibleMonth, setVisibleMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -141,7 +146,7 @@ export function TimelineCalendar({ entries, onOpenEntry }: { entries: WearEntry[
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { gap: spacing.lg, paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   calendarCard: { alignSelf: 'center', maxWidth: 560, padding: spacing.sm, width: '100%' },
   monthHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', padding: spacing.xs },
@@ -151,7 +156,7 @@ const styles = StyleSheet.create({
   days: { flexDirection: 'row', flexWrap: 'wrap', paddingTop: spacing.xs },
   dayCell: { aspectRatio: 0.86, padding: 2, width: `${100 / 7}%` },
   day: { alignItems: 'center', borderColor: 'transparent', borderRadius: radius.sm, borderWidth: 1, flex: 1, gap: 2, justifyContent: 'center' },
-  dayWithEntry: { backgroundColor: colors.claySoft, borderColor: '#E7C8B8' },
+  dayWithEntry: { backgroundColor: colors.claySoft, borderColor: colors.clay },
   daySelected: { backgroundColor: colors.moss, borderColor: colors.moss },
   dayNumber: { color: colors.inkMuted },
   dayNumberSelected: { color: colors.surface },

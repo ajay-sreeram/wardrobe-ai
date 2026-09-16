@@ -6,7 +6,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import type { WardrobeChatGarment } from '@/models/agent';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type Props = {
   description?: string;
@@ -17,6 +18,8 @@ type Props = {
 
 export function GarmentCollectionCard({ description, eyebrow, garments, title }: Props) {
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Card style={styles.card}>
       <AppText variant="caption" style={styles.eyebrow}>{eyebrow}</AppText>
@@ -47,7 +50,7 @@ export function GarmentCollectionCard({ description, eyebrow, garments, title }:
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   rail: { gap: spacing.sm },

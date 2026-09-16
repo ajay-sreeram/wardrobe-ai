@@ -1,9 +1,11 @@
 import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors, radius } from '@/theme/tokens';
+import { useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, type ThemeColors } from '@/theme/tokens';
 
 export function Chip({ label, selected = false, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
@@ -17,7 +19,7 @@ export function Chip({ label, selected = false, onPress }: { label: string; sele
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surfaceMuted,

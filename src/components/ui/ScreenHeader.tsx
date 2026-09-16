@@ -3,10 +3,13 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { spacing, type ThemeColors } from '@/theme/tokens';
 
 export function ScreenHeader({ action, eyebrow, settingsDisabled, title }: { action?: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }; eyebrow?: string; settingsDisabled?: boolean; title: string }) {
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.row}>
       <View style={styles.copy}>
@@ -25,7 +28,7 @@ export function ScreenHeader({ action, eyebrow, settingsDisabled, title }: { act
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, paddingTop: spacing.sm },
   copy: { flex: 1 },
   eyebrow: { color: colors.clay, letterSpacing: 1.4, marginBottom: 2, textTransform: 'uppercase' },

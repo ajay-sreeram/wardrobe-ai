@@ -11,7 +11,8 @@ import { listActiveWardrobeGarments, readWardrobeWear } from '@/agents/wardrobe'
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import type { Garment, WearEntry } from '@/models/wardrobe';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -21,6 +22,8 @@ function isValidDate(value: string) {
 }
 
 function PieceOption({ garment, selected, onPress }: { garment: Garment; selected: boolean; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable accessibilityLabel={`${selected ? 'Remove' : 'Add'} ${garment.name}`} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={onPress} style={({ pressed }) => [styles.piece, selected && styles.pieceSelected, pressed && styles.pressed]}>
       <View style={styles.pieceImageWrap}>
@@ -33,6 +36,8 @@ function PieceOption({ garment, selected, onPress }: { garment: Garment; selecte
 }
 
 export default function WearDetailsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const db = useSQLiteContext();
@@ -166,7 +171,7 @@ export default function WearDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   flex: { flex: 1 },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
-import { colors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/AppThemeProvider';
 
 const icons = {
   chat: ['chatbubble-ellipses', 'chatbubble-ellipses-outline'],
@@ -10,6 +10,7 @@ const icons = {
 } as const;
 
 export default function TabLayout() {
+  const { colors } = useAppTheme();
   return (
     <Tabs
       initialRouteName="chat"

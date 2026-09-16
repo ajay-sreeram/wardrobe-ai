@@ -2,9 +2,11 @@ import type { PropsWithChildren } from 'react';
 import type { ViewProps } from 'react-native';
 import { View } from 'react-native';
 
-import { colors, radius, shadow, spacing } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/AppThemeProvider';
+import { radius, shadow, spacing } from '@/theme/tokens';
 
 export function Card({ children, style, ...props }: PropsWithChildren<ViewProps>) {
+  const { colors, isDark } = useAppTheme();
   return (
     <View
       {...props}
@@ -15,6 +17,7 @@ export function Card({ children, style, ...props }: PropsWithChildren<ViewProps>
           borderRadius: radius.md,
           borderWidth: 1,
           padding: spacing.md,
+          shadowColor: isDark ? '#000000' : '#283128',
           ...shadow,
         },
         style,

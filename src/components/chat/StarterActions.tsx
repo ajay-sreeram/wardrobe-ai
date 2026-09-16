@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 const starters = [
   {
@@ -32,6 +33,8 @@ const starters = [
 ];
 
 export function StarterActions({ disabled, onSelect }: { disabled: boolean; onSelect: (prompt: string) => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
       <AppText variant="caption" style={styles.eyebrow}>Try asking Muse</AppText>
@@ -61,7 +64,7 @@ export function StarterActions({ disabled, onSelect }: { disabled: boolean; onSe
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   wrap: { gap: spacing.sm, paddingTop: spacing.xs },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

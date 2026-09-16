@@ -10,11 +10,14 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import type { ChatMessage } from '@/models/agent';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type ConfirmationMessage = Extract<ChatMessage, { kind: 'confirmation' }>;
 
 export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName, wearContext }: ConfirmationMessage) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +99,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
   preview: { alignItems: 'center', backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220, justifyContent: 'center', overflow: 'hidden' },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },

@@ -2,7 +2,8 @@ import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors, radius } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, type ThemeColors } from '@/theme/tokens';
 
 type Props = ComponentProps<typeof Pressable> & {
   label: string;
@@ -11,6 +12,8 @@ type Props = ComponentProps<typeof Pressable> & {
 };
 
 export function AppButton({ label, tone = 'primary', loading, disabled, style, ...props }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const foreground = tone === 'primary' ? colors.surface : colors.moss;
   return (
     <Pressable
@@ -28,7 +31,7 @@ export function AppButton({ label, tone = 'primary', loading, disabled, style, .
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   base: {
     alignItems: 'center',
     borderRadius: radius.pill,

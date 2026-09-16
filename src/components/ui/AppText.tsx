@@ -1,7 +1,7 @@
 import type { TextProps } from 'react-native';
 import { Text } from 'react-native';
 
-import { colors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/AppThemeProvider';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption' | 'label';
 
@@ -15,5 +15,6 @@ const variants = {
 };
 
 export function AppText({ variant = 'body', style, ...props }: TextProps & { variant?: Variant }) {
+  const { colors } = useAppTheme();
   return <Text {...props} style={[{ color: colors.ink }, variants[variant], style]} />;
 }

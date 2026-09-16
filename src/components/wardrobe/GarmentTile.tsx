@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { Garment } from '@/models/wardrobe';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 const swatches = ['#BAC9D8', '#D8CAB6', '#454C50', '#63756A', '#E8E0CE', '#C4B09B'];
 const shortDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' });
@@ -22,6 +23,8 @@ function garmentIcon(tags: string[]): keyof typeof Ionicons.glyphMap {
 }
 
 export function GarmentTile({ garment, compact = false, grid = false, active = false, organizing = false, onPress, onLongPress }: { garment: Garment; compact?: boolean; grid?: boolean; active?: boolean; organizing?: boolean; onPress?: () => void; onLongPress?: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const swatch = swatches[garment.name.length % swatches.length];
   return (
     <Pressable
@@ -59,7 +62,7 @@ export function GarmentTile({ garment, compact = false, grid = false, active = f
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', width: 148 },
   compactCard: { borderRadius: radius.sm, width: 58 },
   gridCard: { borderRadius: radius.sm, width: '100%' },

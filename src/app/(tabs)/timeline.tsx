@@ -12,9 +12,12 @@ import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getWearTimeline } from '@/database/repository';
 import type { WearEntry } from '@/models/wardrobe';
-import { colors, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { spacing, type ThemeColors } from '@/theme/tokens';
 
 export default function TimelineScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const router = useRouter();
   const [entries, setEntries] = useState<WearEntry[]>([]);
@@ -56,7 +59,7 @@ export default function TimelineScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   viewSwitch: { backgroundColor: colors.surfaceMuted, borderRadius: 999, flexDirection: 'row', marginBottom: spacing.md, marginHorizontal: spacing.lg, padding: 4 },
   viewOption: { alignItems: 'center', borderRadius: 999, flex: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 40 },

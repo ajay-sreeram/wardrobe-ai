@@ -12,11 +12,14 @@ import { Card } from '@/components/ui/Card';
 import { developmentEnv } from '@/config/env';
 import type { ChatMessage } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type DuplicateMessage = Extract<ChatMessage, { kind: 'duplicate' }>;
 
 export function DuplicateCandidateCard({ message }: { message: DuplicateMessage }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const db = useSQLiteContext();
   const replaceMessage = useChatStore((state) => state.replaceMessage);
@@ -129,7 +132,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
   preview: { backgroundColor: '#F2F0EA', borderRadius: radius.sm, height: 220 },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },

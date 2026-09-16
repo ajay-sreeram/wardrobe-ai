@@ -10,11 +10,14 @@ import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import type { ChatMessage } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type ActionMessage = Extract<ChatMessage, { kind: 'action_confirmation' }>;
 
 export function ActionConfirmationCard({ message }: { message: ActionMessage }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const replaceMessage = useChatStore((state) => state.replaceMessage);
   const [saving, setSaving] = useState(false);
@@ -61,7 +64,7 @@ export function ActionConfirmationCard({ message }: { message: ActionMessage }) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { gap: spacing.sm, padding: spacing.sm, width: '92%' },
   eyebrow: { color: colors.clay, letterSpacing: 0.7, textTransform: 'uppercase' },
   rail: { gap: spacing.sm },

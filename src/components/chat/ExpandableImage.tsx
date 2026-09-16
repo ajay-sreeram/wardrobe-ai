@@ -5,7 +5,8 @@ import { Modal, Pressable, ScrollView, type StyleProp, StyleSheet, type ViewStyl
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type GarmentPreviewDetails = {
   name: string;
@@ -23,6 +24,8 @@ type Props = {
 };
 
 export function ExpandableImage({ uri, style, badge = 'Tap to view', details, onPress }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
   const open = onPress ?? (() => setExpanded(true));
   return (
@@ -75,7 +78,7 @@ export function ExpandableImage({ uri, style, badge = 'Tap to view', details, on
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   preview: { backgroundColor: '#E8E7E2', overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   badge: { alignItems: 'center', backgroundColor: 'rgba(30,33,30,0.72)', borderRadius: radius.pill, bottom: spacing.sm, flexDirection: 'row', gap: 5, left: spacing.sm, paddingHorizontal: 9, paddingVertical: 5, position: 'absolute' },

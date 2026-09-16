@@ -1,5 +1,3 @@
-import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
-
 export const lightColors = {
   background: '#F6F4EF',
   surface: '#FFFFFF',
@@ -15,7 +13,9 @@ export const lightColors = {
   danger: '#A2463B',
 } as const;
 
-export const darkColors = {
+export type ThemeColors = { [Key in keyof typeof lightColors]: string };
+
+export const darkColors: ThemeColors = {
   background: '#111411',
   surface: '#1B201C',
   surfaceMuted: '#272D28',
@@ -29,17 +29,6 @@ export const darkColors = {
   gold: '#D8B971',
   danger: '#F08A7B',
 } as const;
-
-function adaptiveColor(light: string, dark: string): ColorValue {
-  return Platform.OS === 'ios' ? DynamicColorIOS({ light, dark }) : light;
-}
-
-export const colors = Object.fromEntries(
-  Object.keys(lightColors).map((key) => [
-    key,
-    adaptiveColor(lightColors[key as keyof typeof lightColors], darkColors[key as keyof typeof darkColors]),
-  ]),
-) as Record<keyof typeof lightColors, ColorValue>;
 
 export const spacing = {
   xs: 6,
@@ -57,7 +46,6 @@ export const radius = {
 } as const;
 
 export const shadow = {
-  shadowColor: adaptiveColor('#283128', '#000000'),
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: 0.07,
   shadowRadius: 18,

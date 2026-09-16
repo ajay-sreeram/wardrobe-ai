@@ -11,9 +11,12 @@ import { WardrobeResultsCard } from '@/components/chat/WardrobeResultsCard';
 import { WearConfirmationCard } from '@/components/chat/WearConfirmationCard';
 import { AppText } from '@/components/ui/AppText';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; onRetry?: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   if (message.kind === 'conversation_boundary') {
     return (
       <View accessibilityLabel="New conversation" style={styles.boundary}>
@@ -72,13 +75,13 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   bubble: { borderRadius: radius.md, maxWidth: '84%', paddingHorizontal: spacing.md, paddingVertical: 12 },
   user: { alignSelf: 'flex-end', backgroundColor: colors.moss, borderBottomRightRadius: 5 },
   assistant: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 5 },
   userText: { color: colors.surface },
   imageBubble: { alignSelf: 'flex-end', backgroundColor: '#E8E7E2', borderRadius: radius.md, height: 112, overflow: 'hidden', width: 92 },
-  error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#F6E3DF', borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
+  error: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.claySoft, borderRadius: radius.sm, flexDirection: 'row', gap: spacing.sm, maxWidth: '88%', padding: spacing.sm },
   errorText: { color: colors.danger, flex: 1 },
   retry: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.pill, flexDirection: 'row', gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
   retryText: { color: colors.danger },

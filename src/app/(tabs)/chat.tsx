@@ -16,11 +16,14 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { developmentEnv } from '@/config/env';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type FailedSubmission = { errorId: string; images: PendingChatImage[]; text: string };
 
 export default function ChatScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, startNewConversation } = useChatStore();
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
@@ -277,6 +280,7 @@ export default function ChatScreen() {
 }
 
 function AppPrivacyText({ count }: { count: number }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <>
       <AppText variant="caption" style={styles.selectionTitle}>{count} selected</AppText>
@@ -285,7 +289,7 @@ function AppPrivacyText({ count }: { count: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { backgroundColor: colors.background, flex: 1 },
   flex: { flex: 1 },
   listContent: { paddingBottom: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
@@ -303,5 +307,5 @@ const styles = StyleSheet.create({
   attach: { alignItems: 'center', backgroundColor: colors.mossSoft, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   input: { color: colors.ink, flex: 1, fontSize: 16, lineHeight: 22, maxHeight: 100, minHeight: 44, paddingHorizontal: 4, paddingVertical: 11 },
   send: { alignItems: 'center', backgroundColor: colors.moss, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
-  sendDisabled: { backgroundColor: '#B8BDB8' },
+  sendDisabled: { backgroundColor: colors.inkMuted },
 });

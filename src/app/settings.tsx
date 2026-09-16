@@ -28,13 +28,14 @@ export default function SettingsScreen() {
   const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
   const providerCount = Number(Boolean(developmentEnv.museApiKey)) + Number(Boolean(developmentEnv.geminiApiKey));
 
-  const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
-    { icon: 'albums-outline', label: 'Gallery scanning', value: 'Disabled' },
+  const wardrobeRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
     { icon: 'layers-outline', label: 'Manage sections', value: '4 sections' },
     { icon: 'pricetags-outline', label: 'Manage tags', value: '12 tags' },
-    { icon: 'notifications-outline', label: 'Notifications', value: 'Off' },
-    { icon: 'shield-checkmark-outline', label: 'Privacy & local data', value: 'On device' },
+  ];
+  const museRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
     { icon: 'sparkles-outline', label: 'AI behavior', value: providerCount ? `${providerCount} dev env` : 'Not connected' },
+    { icon: 'albums-outline', label: 'Gallery scanning', value: 'Disabled' },
+    { icon: 'notifications-outline', label: 'Notifications', value: 'Off' },
   ];
 
   function confirmClearHistory() {
@@ -102,9 +103,10 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
+        <AppText variant="caption" style={styles.sectionTitle}>Appearance</AppText>
         <Card style={styles.themeCard}>
           <View>
-            <AppText variant="label">Appearance</AppText>
+            <AppText variant="label">Color theme</AppText>
             <AppText variant="caption" style={styles.muted}>Follow this iPhone or keep Muse in your preferred theme.</AppText>
           </View>
           <View accessibilityRole="radiogroup" style={styles.themeOptions}>
@@ -117,22 +119,8 @@ export default function SettingsScreen() {
             ))}
           </View>
         </Card>
-        <Card style={styles.localCard}>
-          <View style={styles.localIcon}><Ionicons color={colors.moss} name="phone-portrait-outline" size={22} /></View>
-          <View style={styles.flex}>
-            <AppText variant="label">Local-first foundation</AppText>
-            <AppText variant="caption" style={styles.muted}>Garments, wear history, images, and memory stay on this phone.</AppText>
-          </View>
-        </Card>
-        <View style={styles.group}>
-          {rows.map((row, index) => (
-            <View key={row.label} style={[styles.row, index < rows.length - 1 && styles.rowBorder]}>
-              <Ionicons color={colors.moss} name={row.icon} size={21} />
-              <AppText style={styles.flex}>{row.label}</AppText>
-              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
-            </View>
-          ))}
-        </View>
+
+        <AppText variant="caption" style={styles.sectionTitle}>Wardrobe</AppText>
         <Pressable accessibilityRole="button" onPress={() => router.push('/archived')}>
           <Card style={styles.chatCard}>
             <View style={styles.localIcon}><Ionicons color={colors.moss} name="archive-outline" size={22} /></View>
@@ -143,6 +131,35 @@ export default function SettingsScreen() {
             <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
           </Card>
         </Pressable>
+        <View style={styles.group}>
+          {wardrobeRows.map((row, index) => (
+            <View key={row.label} style={[styles.row, index < wardrobeRows.length - 1 && styles.rowBorder]}>
+              <Ionicons color={colors.moss} name={row.icon} size={21} />
+              <AppText style={styles.flex}>{row.label}</AppText>
+              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
+            </View>
+          ))}
+        </View>
+
+        <AppText variant="caption" style={styles.sectionTitle}>Muse</AppText>
+        <View style={styles.group}>
+          {museRows.map((row, index) => (
+            <View key={row.label} style={[styles.row, index < museRows.length - 1 && styles.rowBorder]}>
+              <Ionicons color={colors.moss} name={row.icon} size={21} />
+              <AppText style={styles.flex}>{row.label}</AppText>
+              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
+            </View>
+          ))}
+        </View>
+
+        <AppText variant="caption" style={styles.sectionTitle}>Your data</AppText>
+        <Card style={styles.localCard}>
+          <View style={styles.localIcon}><Ionicons color={colors.moss} name="phone-portrait-outline" size={22} /></View>
+          <View style={styles.flex}>
+            <AppText variant="label">Private and local</AppText>
+            <AppText variant="caption" style={styles.muted}>Garments, wear history, images, and memory stay on this phone.</AppText>
+          </View>
+        </Card>
         <Card style={styles.dataCard}>
           <View>
             <AppText variant="label">Local backup</AppText>
@@ -173,7 +190,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: { flex: 1 },
   eyebrow: { color: colors.clay, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
   close: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
-  content: { gap: spacing.lg, padding: spacing.lg },
+  content: { gap: spacing.md, padding: spacing.lg, paddingBottom: spacing.xl },
+  sectionTitle: { color: colors.clay, letterSpacing: 1, marginTop: spacing.sm, paddingHorizontal: spacing.xs, textTransform: 'uppercase' },
   themeCard: { gap: spacing.md },
   themeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   localCard: { alignItems: 'center', backgroundColor: colors.mossSoft, flexDirection: 'row', gap: spacing.md },

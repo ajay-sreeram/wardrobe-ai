@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo/app-integrity": "^57.0.2",
     "@expo/ui": "~57.0.18",
     "@expo/vector-icons": "^15.0.2",
     "@shopify/flash-list": "2.0.2",
@@ -19,6 +20,7 @@
     "expo-image-picker": "~57.0.18",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.21",
+    "expo-secure-store": "~57.0.4",
     "expo-sharing": "~57.0.20",
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",

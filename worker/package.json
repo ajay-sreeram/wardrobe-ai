@@ -10,5 +10,8 @@
     "@cloudflare/workers-types": "^5.20260915.1",
     "typescript": "^6.0.3",
     "wrangler": "^4.132.0"
+  },
+  "dependencies": {
+    "node-app-attest": "^1.0.1"
   }
 }

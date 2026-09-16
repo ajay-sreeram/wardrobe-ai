@@ -1,8 +1,10 @@
+import { handleIntegrityRoute, type IntegrityEnv, verifyApiAccess } from './integrity';
+
 interface RateLimitBinding {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
-interface Env {
+interface Env extends IntegrityEnv {
   ALLOWED_ORIGINS: string;
   API_RATE_LIMITER: RateLimitBinding;
   GEMINI_API_KEY: string;
@@ -81,7 +83,7 @@ function allowedOrigin(request: Request, env: Env) {
 
 function corsHeaders(origin: string | null): Record<string, string> {
   return origin ? {
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Origin': origin,
     'Vary': 'Origin',
@@ -106,16 +108,29 @@ export default {
       return jsonResponse({ ok: true }, 200, corsOrigin);
     }
 
+    if (request.method === 'GET' && url.pathname === '/v1/integrity/status') {
+      return handleIntegrityRoute(request, url, env, corsHeaders(corsOrigin));
+    }
+
+    const integrityRoute = url.pathname.startsWith('/v1/integrity/');
     const route = routes[url.pathname];
-    if (!route) return jsonResponse({ error: 'Not found.' }, 404, corsOrigin);
+    if (!route && !integrityRoute) return jsonResponse({ error: 'Not found.' }, 404, corsOrigin);
     if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405, corsOrigin);
 
     const declaredLength = Number(request.headers.get('Content-Length') ?? 0);
     if (declaredLength > maximumBodyBytes) return jsonResponse({ error: 'Request is too large.' }, 413, corsOrigin);
 
-    const actor = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const access = integrityRoute ? { authorized: true, actor: null } : await verifyApiAccess(request, env);
+    if (!access.authorized) {
+      const response = jsonResponse({ error: 'A verified app session is required.' }, 401, corsOrigin);
+      response.headers.set('X-Wardrobe-Auth', 'required');
+      return response;
+    }
+    const actor = access.actor ?? request.headers.get('CF-Connecting-IP') ?? 'unknown';
     const { success } = await env.API_RATE_LIMITER.limit({ key: `${actor}:${url.pathname}` });
     if (!success) return jsonResponse({ error: 'Too many requests. Please try again shortly.' }, 429, corsOrigin);
+
+    if (integrityRoute) return handleIntegrityRoute(request, url, env, corsHeaders(corsOrigin));
 
     let rawBody: string;
     let body!: Record<string, unknown>;

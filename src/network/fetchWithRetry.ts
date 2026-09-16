@@ -1,3 +1,5 @@
+import { authenticatedRequestInit, invalidateIntegritySession } from '@/network/appIntegrity';
+
 const maximumAttempts = 3;
 const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -12,7 +14,12 @@ export async function fetchWithRetry(url: string, init: RequestInit, timeoutMs: 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, { ...init, signal: controller.signal });
+      const authenticatedInit = await authenticatedRequestInit(url, init);
+      const response = await fetch(url, { ...authenticatedInit, signal: controller.signal });
+      if (response.status === 401 && response.headers.get('X-Wardrobe-Auth') === 'required' && attempt < maximumAttempts) {
+        await invalidateIntegritySession();
+        continue;
+      }
       if (!retryableStatuses.has(response.status) || attempt === maximumAttempts) return response;
     } catch (error) {
       lastError = error;

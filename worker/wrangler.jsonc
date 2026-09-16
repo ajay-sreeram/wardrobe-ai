@@ -3,12 +3,23 @@
   "name": "wardrobe-ai-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-16",
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "ALLOWED_ORIGINS": "*"
+    "ALLOWED_ORIGINS": "*",
+    "APPLE_BUNDLE_ID": "",
+    "APPLE_TEAM_ID": "",
+    "INTEGRITY_MODE": "report-only"
   },
   "secrets": {
-    "required": ["MUSE_API_KEY", "GEMINI_API_KEY"]
+    "required": ["MUSE_API_KEY", "GEMINI_API_KEY", "SESSION_SECRET"]
   },
+  "d1_databases": [
+    {
+      "binding": "ATTEST_DB",
+      "database_name": "wardrobe-ai-integrity",
+      "database_id": "0d7c1e0e-1931-407e-a2cf-9ce6bb58132f"
+    }
+  ],
   "ratelimits": [
     {
       "name": "API_RATE_LIMITER",

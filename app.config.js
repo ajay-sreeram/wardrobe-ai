@@ -5,7 +5,7 @@ loadEnv({ path: path.join(__dirname, 'local-secrets', '.env'), quiet: true });
 
 module.exports = ({ config }) => ({
   ...config,
-  plugins: [...(config.plugins ?? []), 'expo-sharing'],
+  plugins: [...(config.plugins ?? []), 'expo-sharing', 'expo-secure-store'],
   extra: {
     ...config.extra,
     // Public routing configuration only. Provider keys belong in the Worker.

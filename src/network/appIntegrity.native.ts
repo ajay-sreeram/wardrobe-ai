@@ -1,5 +1,5 @@
-import * as AppIntegrity from '@expo/app-integrity';
 import * as SecureStore from 'expo-secure-store';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { Platform } from 'react-native';
 
 import { appEnv } from '@/config/env';
@@ -12,6 +12,19 @@ const statusCacheMilliseconds = 5 * 60 * 1000;
 type IntegrityStatus = { required: boolean };
 type Challenge = { id: string; challenge: string; expiresAt: number };
 type Session = { token: string; expiresAt: number };
+type NativeAppIntegrity = {
+  isSupported: boolean;
+  generateKeyAsync(): Promise<string>;
+  attestKeyAsync(keyId: string, challenge: string): Promise<string>;
+  generateAssertionAsync(keyId: string, challenge: string): Promise<string>;
+};
+
+const appIntegrity = requireOptionalNativeModule<NativeAppIntegrity>('ExpoAppIntegrity');
+
+function requiredAppIntegrity() {
+  if (!appIntegrity?.isSupported) throw new Error('This device cannot verify the Wardrobe app installation.');
+  return appIntegrity;
+}
 
 class IntegrityRequestError extends Error {
   constructor(message: string, readonly status: number) {
@@ -59,7 +72,7 @@ async function challenge(purpose: 'attest' | 'session', keyId?: string) {
 
 async function registerKey(keyId: string) {
   const current = await challenge('attest');
-  const attestation = await AppIntegrity.attestKeyAsync(keyId, current.challenge);
+  const attestation = await requiredAppIntegrity().attestKeyAsync(keyId, current.challenge);
   await requestJson('/v1/integrity/attest', {
     method: 'POST',
     body: JSON.stringify({ challengeId: current.id, keyId, attestation }),
@@ -69,7 +82,7 @@ async function registerKey(keyId: string) {
 
 async function createSession(keyId: string) {
   const current = await challenge('session', keyId);
-  const assertion = await AppIntegrity.generateAssertionAsync(keyId, current.challenge);
+  const assertion = await requiredAppIntegrity().generateAssertionAsync(keyId, current.challenge);
   const session = await requestJson<Session>('/v1/integrity/session', {
     method: 'POST',
     body: JSON.stringify({ challengeId: current.id, keyId, assertion }),
@@ -89,7 +102,7 @@ async function clearDeviceKey() {
 async function acquireSession(allowKeyRegeneration: boolean): Promise<string> {
   let keyId = await SecureStore.getItemAsync(keyIdStorageKey);
   if (!keyId) {
-    keyId = await AppIntegrity.generateKeyAsync();
+    keyId = await requiredAppIntegrity().generateKeyAsync();
     await SecureStore.setItemAsync(keyIdStorageKey, keyId);
   }
 
@@ -128,7 +141,7 @@ export async function authenticatedRequestInit(url: string, init: RequestInit) {
   if (!appEnv.apiBaseUrl || !url.startsWith(appEnv.apiBaseUrl)) return init;
   const status = await integrityStatus();
   if (!status.required) return init;
-  if (Platform.OS !== 'ios' || !AppIntegrity.isSupported) {
+  if (Platform.OS !== 'ios' || !appIntegrity?.isSupported) {
     throw new Error('This device cannot verify the Wardrobe app installation.');
   }
   const headers = new Headers(init.headers);

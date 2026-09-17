@@ -6,8 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "ALLOWED_ORIGINS": "*",
-    "APPLE_BUNDLE_ID": "",
-    "APPLE_TEAM_ID": "",
+    "APPLE_BUNDLE_ID": "com.sreeram-ajay.wardrobe-ai",
+    "APPLE_TEAM_ID": "9F4H5JDXW7",
     "INTEGRITY_MODE": "report-only"
   },
   "secrets": {

@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.sreeram-ajay.wardrobe-ai"
+      "bundleIdentifier": "com.sreeram-ajay.wardrobe-ai",
+      "appleTeamId": "9F4H5JDXW7",
+      "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "development"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -48,6 +53,7 @@
         }
       ],
       "expo-sqlite",
+      "expo-apple-authentication",
       [
         "expo-image-picker",
         {

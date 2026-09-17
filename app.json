@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.sreeram-ajay.wardrobe-ai"
+      "bundleIdentifier": "com.sreeram-ajay.wardrobe-ai",
+      "appleTeamId": "9F4H5JDXW7"
     },
     "android": {
       "adaptiveIcon": {

@@ -96,6 +96,7 @@ export function GarmentBatchConfirmationCard({ message }: { message: BatchMessag
             <View key={`${garment.garmentName}-${index}`} style={[styles.garmentRow, !included && styles.excluded]}>
               <ExpandableImage
                 badge="View garment details"
+                compactBadge
                 details={{ name: garment.garmentName, sectionName: garment.suggestedSectionName, description: garment.description, tags: garment.tags }}
                 style={styles.preview}
                 uri={garment.canonicalImageUri}

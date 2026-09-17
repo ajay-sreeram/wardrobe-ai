@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { garmentSchema, type Garment, type WardrobeSection, type WearEntry } from '@/models/wardrobe';
 
 export type WardrobeSectionOption = { id: string; name: string };
-export type WardrobeSectionDetails = WardrobeSectionOption & { position: number; garmentCount: number; sectionCount: number };
+export type WardrobeSectionDetails = WardrobeSectionOption & { position: number; garmentCount: number; archivedGarmentCount: number; sectionCount: number };
 export type NewGarment = {
   id: string;
   name: string;
@@ -85,6 +85,7 @@ export async function getWardrobeSectionDetails(db: SQLiteDatabase, sectionId: s
   return db.getFirstAsync<WardrobeSectionDetails>(
     `SELECT id, name, position,
        (SELECT COUNT(*) FROM garments WHERE section_id = sections.id AND archived_at IS NULL) AS garmentCount,
+       (SELECT COUNT(*) FROM garments WHERE section_id = sections.id AND archived_at IS NOT NULL) AS archivedGarmentCount,
        (SELECT COUNT(*) FROM sections) AS sectionCount
      FROM sections WHERE id = ?`,
     sectionId,
@@ -236,6 +237,45 @@ export async function moveWardrobeSection(db: SQLiteDatabase, sectionId: string,
     await db.runAsync('UPDATE sections SET position = ? WHERE id = ?', neighbor.position, section.id);
     await db.runAsync('UPDATE sections SET position = ? WHERE id = ?', section.position, neighbor.id);
   });
+}
+
+export async function deleteWardrobeSection(db: SQLiteDatabase, sectionId: string, destinationSectionId: string | null) {
+  const source = await db.getFirstAsync<{ id: string; position: number }>('SELECT id, position FROM sections WHERE id = ?', sectionId);
+  if (!source) throw new Error('Section not found.');
+  const sectionCount = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM sections');
+  if ((sectionCount?.count ?? 0) <= 1) throw new Error('Keep at least one wardrobe section.');
+  const garments = await db.getAllAsync<{ id: string }>(
+    'SELECT id FROM garments WHERE section_id = ? ORDER BY archived_at IS NOT NULL, position, created_at',
+    sectionId,
+  );
+  if (garments.length && !destinationSectionId) throw new Error('Choose where to move this section’s garments.');
+  if (destinationSectionId === sectionId) throw new Error('Choose a different destination section.');
+  if (destinationSectionId) {
+    const destination = await db.getFirstAsync<{ id: string }>('SELECT id FROM sections WHERE id = ?', destinationSectionId);
+    if (!destination) throw new Error('Destination section not found.');
+  }
+
+  await db.withTransactionAsync(async () => {
+    if (destinationSectionId) {
+      const destinationPosition = await db.getFirstAsync<{ position: number }>(
+        'SELECT COALESCE(MAX(position), -1) AS position FROM garments WHERE section_id = ?',
+        destinationSectionId,
+      );
+      const start = (destinationPosition?.position ?? -1) + 1;
+      for (const [index, garment] of garments.entries()) {
+        await db.runAsync(
+          'UPDATE garments SET section_id = ?, position = ?, updated_at = ? WHERE id = ?',
+          destinationSectionId,
+          start + index,
+          new Date().toISOString(),
+          garment.id,
+        );
+      }
+    }
+    await db.runAsync('DELETE FROM sections WHERE id = ?', sectionId);
+    await db.runAsync('UPDATE sections SET position = position - 1 WHERE position > ?', source.position);
+  });
+  return garments.length;
 }
 
 export async function archiveGarment(db: SQLiteDatabase, garmentId: string) {

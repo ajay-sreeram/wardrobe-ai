@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getArchivedGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertGarments, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, restoreGarment, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, deleteWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getArchivedGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertGarments, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, restoreGarment, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -127,6 +127,11 @@ export async function renameSection(db: SQLiteDatabase, sectionId: string, name:
 
 export async function moveSection(db: SQLiteDatabase, sectionId: string, direction: -1 | 1) {
   return moveWardrobeSection(db, sectionId, direction);
+}
+
+export async function deleteSection(db: SQLiteDatabase, sectionId: string, destinationSectionId: string | null) {
+  if (!sectionId.trim()) throw new Error('Section ID is required.');
+  return deleteWardrobeSection(db, sectionId, destinationSectionId);
 }
 
 export async function recordWardrobeWear(db: SQLiteDatabase, input: z.input<typeof recordWearSchema>) {

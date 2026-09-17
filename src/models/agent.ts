@@ -49,6 +49,7 @@ export type WardrobeMutation =
   | { type: 'restore_garment'; garmentId: string }
   | { type: 'create_section'; name: string }
   | { type: 'rename_section'; sectionId: string; name: string }
+  | { type: 'delete_section'; sectionId: string; destinationSectionId: string | null }
   | { type: 'update_wear'; wearId: string; garmentIds: string[]; wornAt: string; note: string }
   | { type: 'delete_wear'; wearId: string };
 

@@ -4,7 +4,7 @@ import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, r
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, addGarmentsToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, addGarmentsToWardrobe, archiveWardrobeGarment, createSection, deleteSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -213,6 +213,20 @@ function describeWardrobeMutation(
   }
   if (action.type === 'create_section') return { action, title: `Create ${action.name}?`, description: 'This will add a new section to your wardrobe.', confirmLabel: 'Create section', garments: [] };
   if (action.type === 'rename_section') return { action, title: `Rename ${sections.get(action.sectionId)}?`, description: `The section will be renamed to ${action.name}. Its garments will stay in place.`, confirmLabel: 'Rename section', garments: [] };
+  if (action.type === 'delete_section') {
+    const sourceName = sections.get(action.sectionId)!;
+    const destinationName = action.destinationSectionId ? sections.get(action.destinationSectionId)! : null;
+    const sectionGarments = [...garments.values(), ...archivedGarments.values()].filter((garment) => garment.sectionId === action.sectionId);
+    return {
+      action,
+      title: `Delete ${sourceName}?`,
+      description: destinationName
+        ? `Move ${sectionGarments.length} ${sectionGarments.length === 1 ? 'piece' : 'pieces'} to ${destinationName}, then delete ${sourceName}. Timeline history will stay unchanged.`
+        : `Delete the empty ${sourceName} section.`,
+      confirmLabel: 'Delete section',
+      garments: sectionGarments.slice(0, 8),
+    };
+  }
   const wear = wears.get(action.wearId)!;
   const wearGarments = action.type === 'update_wear' ? action.garmentIds.flatMap((id) => garments.get(id) ?? []) : wear.garments.flatMap((item) => garments.get(item.id) ?? []);
   if (action.type === 'update_wear') return { action, title: `Correct the ${wear.wornAt} outfit?`, description: `Save ${wearGarments.map((garment) => garment.name).join(' + ')} for ${action.wornAt}${action.note ? ` · ${action.note}` : ''}.`, confirmLabel: 'Update Timeline', garments: wearGarments };
@@ -321,6 +335,18 @@ export async function coordinateSectionMove(db: SQLiteDatabase, sectionId: strin
   return moveSection(db, sectionId, direction);
 }
 
+export async function coordinateSectionDelete(db: SQLiteDatabase, sectionId: string, destinationSectionId: string | null) {
+  const sections = await listWardrobeSections(db);
+  const source = sections.find((section) => section.id === sectionId);
+  const destination = destinationSectionId ? sections.find((section) => section.id === destinationSectionId) : null;
+  if (!source) throw new Error('Section not found.');
+  const moved = await deleteSection(db, sectionId, destinationSectionId);
+  await rememberWardrobeChange(destination
+    ? `Deleted wardrobe section ${source.name} after moving ${moved} pieces to ${destination.name}.`
+    : `Deleted empty wardrobe section ${source.name}.`).catch(() => undefined);
+  return moved;
+}
+
 export async function coordinateWearRecord(db: SQLiteDatabase, input: { garmentIds: string[]; garmentNames: string[]; wornAt: string; note: string }) {
   const wearId = await recordWardrobeWear(db, input);
   await rememberWear(input.garmentNames, input.wornAt, input.note).catch(() => undefined);
@@ -364,6 +390,18 @@ export async function coordinateWardrobeMutation(db: SQLiteDatabase, action: War
     await renameSection(db, action.sectionId, action.name);
     await rememberWardrobeChange(`Renamed wardrobe section ${oldName ?? ''} to ${action.name}.`).catch(() => undefined);
     return `Renamed ${oldName ?? 'section'} to ${action.name}`;
+  }
+  if (action.type === 'delete_section') {
+    const sections = await listWardrobeSections(db);
+    const source = sections.find((section) => section.id === action.sectionId);
+    const destination = action.destinationSectionId ? sections.find((section) => section.id === action.destinationSectionId) : null;
+    const moved = await deleteSection(db, action.sectionId, action.destinationSectionId);
+    await rememberWardrobeChange(destination
+      ? `Deleted wardrobe section ${source?.name ?? 'section'} after moving ${moved} pieces to ${destination.name}.`
+      : `Deleted empty wardrobe section ${source?.name ?? 'section'}.`).catch(() => undefined);
+    return destination
+      ? `Moved ${moved} ${moved === 1 ? 'piece' : 'pieces'} to ${destination.name} and deleted ${source?.name ?? 'the section'}`
+      : `Deleted ${source?.name ?? 'the empty section'}`;
   }
   if (action.type === 'update_wear') {
     await updateWardrobeWear(db, action);

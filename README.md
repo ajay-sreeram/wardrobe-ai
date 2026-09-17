@@ -26,6 +26,7 @@ The app currently includes:
 - agent-driven, read-only wardrobe questions with matching local garments rendered directly in Chat
 - garment details and editing for names, tags, and sections, with confirmed recoverable archiving
 - persistent garment and section ordering, plus section creation and renaming
+- safe section deletion with required active-and-archived garment transfer, available in the UI and through Muse confirmation
 - tap-to-open garment cards with long-press horizontal drag reordering
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - all-pieces sorting for wardrobe order, least worn, not worn recently, newest, and garment name
@@ -61,6 +62,8 @@ Vision stays precise and structured internally, while Muse turns its findings in
 For text conversations, the Wardrobe Agent supplies Muse with the current active SQLite catalog as read-only reference data. Muse can answer natural inventory questions such as counts, colors, garment types, sections, and what has not been worn recently, and can return exact garment IDs for rich Chat cards. Returned IDs are validated against SQLite before rendering; Muse cannot invent or mutate wardrobe records through this path.
 
 Tap a garment in Wardrobe to view its canonical image and details, rename it, edit its tags, move it between sections, or archive it after confirmation. “Add piece” opens Chat with the selected section already in the draft so the normal photo-analysis and confirmation flow remains the single ingestion path.
+
+A section can be deleted only when another section remains. If it contains active or archived garments, the user must choose a destination first; the Wardrobe Agent moves every affected garment and removes the section in one local transaction. Timeline history is unchanged. Muse can propose the same operation in natural language, but it still requires explicit confirmation.
 
 Swipe a garment rail to browse it normally. Tap a card to open its details, or long press and drag it horizontally to rearrange its section. Long press also enters a visible organizing state with highlighted cards, drag handles, contextual guidance, and a Done button. Move earlier/later remains available in the detail screen as an accessible fallback. A section's overflow button opens section management for renaming and reliable move controls, and the Wardrobe screen can create new sections. Positions are stored in SQLite and retained across launches.
 

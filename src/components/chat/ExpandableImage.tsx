@@ -19,11 +19,12 @@ type Props = {
   uri: string;
   style?: StyleProp<ViewStyle>;
   badge?: string;
+  compactBadge?: boolean;
   details?: GarmentPreviewDetails;
   onPress?: () => void;
 };
 
-export function ExpandableImage({ uri, style, badge = 'Tap to view', details, onPress }: Props) {
+export function ExpandableImage({ uri, style, badge = 'Tap to view', compactBadge = false, details, onPress }: Props) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
@@ -37,9 +38,9 @@ export function ExpandableImage({ uri, style, badge = 'Tap to view', details, on
         onPress={open}
         style={[styles.preview, style]}>
         <Image contentFit="contain" source={{ uri }} style={styles.image} transition={150} />
-        <View style={styles.badge}>
+        <View style={[styles.badge, compactBadge && styles.compactBadge]}>
           <Ionicons color={colors.surface} name="expand-outline" size={13} />
-          <AppText variant="caption" style={styles.badgeText}>{badge}</AppText>
+          {!compactBadge ? <AppText variant="caption" style={styles.badgeText}>{badge}</AppText> : null}
         </View>
       </Pressable>
       <Modal animationType="fade" onRequestClose={() => setExpanded(false)} transparent visible={expanded && !onPress}>
@@ -82,6 +83,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   preview: { backgroundColor: colors.garmentCanvasMuted, overflow: 'hidden' },
   image: { height: '100%', width: '100%' },
   badge: { alignItems: 'center', backgroundColor: 'rgba(30,33,30,0.72)', borderRadius: radius.pill, bottom: spacing.sm, flexDirection: 'row', gap: 5, left: spacing.sm, paddingHorizontal: 9, paddingVertical: 5, position: 'absolute' },
+  compactBadge: { bottom: undefined, height: 26, justifyContent: 'center', left: undefined, paddingHorizontal: 0, paddingVertical: 0, right: 5, top: 5, width: 26 },
   badgeText: { color: colors.surface },
   modalOverlay: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.md },
   modalBackdrop: { backgroundColor: colors.background, bottom: 0, left: 0, opacity: 0.97, position: 'absolute', right: 0, top: 0 },

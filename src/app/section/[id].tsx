@@ -2,14 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { coordinateSectionCreate, coordinateSectionMove, coordinateSectionRename } from '@/agents/coordinator';
-import { readSection } from '@/agents/wardrobe';
+import { coordinateSectionCreate, coordinateSectionDelete, coordinateSectionMove, coordinateSectionRename } from '@/agents/coordinator';
+import { listWardrobeSections, readSection } from '@/agents/wardrobe';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
-import type { WardrobeSectionDetails } from '@/database/repository';
+import { Chip } from '@/components/ui/Chip';
+import type { WardrobeSectionDetails, WardrobeSectionOption } from '@/database/repository';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
@@ -21,6 +22,8 @@ export default function SectionDetailsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const [section, setSection] = useState<WardrobeSectionDetails | null>(null);
+  const [destinations, setDestinations] = useState<WardrobeSectionOption[]>([]);
+  const [destinationSectionId, setDestinationSectionId] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(!creating);
   const [saving, setSaving] = useState(false);
@@ -29,11 +32,14 @@ export default function SectionDetailsScreen() {
   useEffect(() => {
     if (creating) return;
     let active = true;
-    readSection(db, id)
-      .then((result) => {
+    Promise.all([readSection(db, id), listWardrobeSections(db)])
+      .then(([result, sectionOptions]) => {
         if (!active) return;
         setSection(result);
         setName(result?.name ?? '');
+        const availableDestinations = sectionOptions.filter((option) => option.id !== id);
+        setDestinations(availableDestinations);
+        setDestinationSectionId(availableDestinations[0]?.id ?? '');
       })
       .catch(() => { if (active) setError('I could not load this section.'); })
       .finally(() => { if (active) setLoading(false); });
@@ -66,6 +72,40 @@ export default function SectionDetailsScreen() {
     }
   }
 
+  function confirmDelete() {
+    if (!section || section.sectionCount <= 1) return;
+    const totalGarments = section.garmentCount + section.archivedGarmentCount;
+    const destination = destinations.find((option) => option.id === destinationSectionId);
+    if (totalGarments && !destination) {
+      setError('Choose where to move this section’s garments.');
+      return;
+    }
+    Alert.alert(
+      `Delete ${section.name}?`,
+      destination
+        ? `${totalGarments} ${totalGarments === 1 ? 'piece' : 'pieces'}, including archived pieces, will move to ${destination.name}. Timeline history will stay unchanged.`
+        : 'This section is empty and will be removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete section',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            setError(null);
+            try {
+              await coordinateSectionDelete(db, section.id, destination?.id ?? null);
+              router.back();
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : 'I could not delete this section.');
+              setSaving(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
@@ -79,7 +119,7 @@ export default function SectionDetailsScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {loading ? <AppText style={styles.muted}>Loading section…</AppText> : null}
           {!loading && !creating && !section ? <AppText style={styles.muted}>This section is no longer available.</AppText> : null}
           {(creating || section) ? (
@@ -109,11 +149,34 @@ export default function SectionDetailsScreen() {
                 </View>
               ) : null}
 
+              {!creating && section ? (
+                <View style={styles.deleteSection}>
+                  <AppText variant="label">Delete section</AppText>
+                  {section.sectionCount <= 1 ? (
+                    <AppText variant="caption" style={styles.muted}>Keep at least one section in your wardrobe.</AppText>
+                  ) : section.garmentCount + section.archivedGarmentCount > 0 ? (
+                    <>
+                      <AppText variant="caption" style={styles.muted}>
+                        Choose a destination for {section.garmentCount + section.archivedGarmentCount} active and archived {(section.garmentCount + section.archivedGarmentCount) === 1 ? 'piece' : 'pieces'}.
+                      </AppText>
+                      <View style={styles.chips}>
+                        {destinations.map((destination) => (
+                          <Chip key={destination.id} label={destination.name} onPress={() => setDestinationSectionId(destination.id)} selected={destinationSectionId === destination.id} />
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <AppText variant="caption" style={styles.muted}>This empty section can be safely removed.</AppText>
+                  )}
+                  <AppButton disabled={saving || section.sectionCount <= 1} label={section.garmentCount + section.archivedGarmentCount ? 'Move pieces & delete' : 'Delete empty section'} onPress={confirmDelete} tone="quiet" style={styles.deleteButton} />
+                </View>
+              ) : null}
+
               {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}
               <AppButton disabled={!name.trim()} label={creating ? 'Create section' : 'Save name'} loading={saving} onPress={save} />
             </>
           ) : null}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -129,7 +192,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   field: { gap: spacing.sm },
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 12 },
   orderButtons: { flexDirection: 'row', gap: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   flexButton: { flex: 1 },
+  deleteSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.lg },
+  deleteButton: { borderColor: colors.line, borderWidth: 1 },
   muted: { color: colors.inkMuted },
   error: { color: colors.danger },
 });

@@ -32,16 +32,31 @@ function localDateContext() {
 }
 
 function recentConversationContext(messages: ChatMessage[]) {
+  const dateTime = new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    timeZoneName: 'short',
+    year: 'numeric',
+  });
+  const prefix = (message: ChatMessage) => {
+    if (!message.createdAt) return '[Earlier conversation]';
+    const date = new Date(message.createdAt);
+    return Number.isNaN(date.valueOf()) ? '[Earlier conversation]' : `[${dateTime.format(date)}]`;
+  };
   const boundaryIndex = messages.reduce((latest, message, index) => message.kind === 'conversation_boundary' ? index : latest, -1);
   const contextEntries = messages.slice(boundaryIndex + 1).flatMap((message) => {
-    if (message.kind === 'text') return [`${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
-    if (message.kind === 'wardrobe_results') return [`Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
-    if (message.kind === 'outfit_suggestion') return [`Assistant ${message.suggestionKind ?? 'outfit'} option (in displayed order), ${message.title}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(' + ')}; reason: ${message.reason}`];
-    if (message.kind === 'wardrobe_insight') return [`Assistant insight, ${message.title}: ${message.summary}; garments: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
-    if (message.kind === 'wear_confirmation') return [`Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
-    if (message.kind === 'wear_status') return [`Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
-    if (message.kind === 'action_confirmation') return [`Pending local change awaiting confirmation: ${message.description}`];
-    if (message.kind === 'action_status') return [`Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
+    const time = prefix(message);
+    if (message.kind === 'text') return [`${time} ${message.role === 'user' ? 'Person' : 'Assistant'}: ${message.text}`];
+    if (message.kind === 'image') return [`${time} Person attached a wardrobe photo.`];
+    if (message.kind === 'wardrobe_results') return [`${time} Assistant showed: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
+    if (message.kind === 'outfit_suggestion') return [`${time} Assistant ${message.suggestionKind ?? 'outfit'} option (in displayed order), ${message.title}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(' + ')}; reason: ${message.reason}`];
+    if (message.kind === 'wardrobe_insight') return [`${time} Assistant insight, ${message.title}: ${message.summary}; garments: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}`];
+    if (message.kind === 'wear_confirmation') return [`${time} Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
+    if (message.kind === 'wear_status') return [`${time} Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
+    if (message.kind === 'action_confirmation') return [`${time} Pending local change awaiting confirmation: ${message.description}`];
+    if (message.kind === 'action_status') return [`${time} Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
     return [];
   });
   return contextEntries.slice(-6).join('\n').slice(-3_000);

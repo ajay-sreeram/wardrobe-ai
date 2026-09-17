@@ -13,13 +13,14 @@ const wardrobeChatGarmentSchema = z.object({
 });
 
 const persistedChatMessageSchema = z.discriminatedUnion('kind', [
-  z.object({ id: z.string(), kind: z.literal('text'), role: z.enum(['assistant', 'user']), text: z.string() }),
-  z.object({ id: z.string(), kind: z.literal('error'), text: z.string() }),
+  z.object({ id: z.string(), kind: z.literal('text'), role: z.enum(['assistant', 'user']), text: z.string(), createdAt: z.string().datetime().optional() }),
+  z.object({ id: z.string(), kind: z.literal('error'), text: z.string(), createdAt: z.string().datetime().optional() }),
   z.object({ id: z.string(), kind: z.literal('conversation_boundary'), createdAt: z.string().datetime() }),
-  z.object({ id: z.string(), kind: z.literal('wardrobe_results'), garments: z.array(wardrobeChatGarmentSchema) }),
-  z.object({ id: z.string(), kind: z.literal('outfit_suggestion'), suggestionKind: z.enum(['outfit', 'packing', 'capsule']).optional(), title: z.string(), reason: z.string(), garments: z.array(wardrobeChatGarmentSchema) }),
-  z.object({ id: z.string(), kind: z.literal('wear_status'), garmentNames: z.array(z.string()), wornAt: z.string(), logged: z.boolean() }),
-  z.object({ id: z.string(), kind: z.literal('action_status'), summary: z.string(), applied: z.boolean() }),
+  z.object({ id: z.string(), kind: z.literal('wardrobe_results'), garments: z.array(wardrobeChatGarmentSchema), createdAt: z.string().datetime().optional() }),
+  z.object({ id: z.string(), kind: z.literal('outfit_suggestion'), suggestionKind: z.enum(['outfit', 'packing', 'capsule']).optional(), title: z.string(), reason: z.string(), garments: z.array(wardrobeChatGarmentSchema), createdAt: z.string().datetime().optional() }),
+  z.object({ id: z.string(), kind: z.literal('wardrobe_insight'), insightKind: z.enum(['rediscovery', 'rotation', 'pairing', 'habit']), title: z.string(), summary: z.string(), garments: z.array(wardrobeChatGarmentSchema), createdAt: z.string().datetime().optional() }),
+  z.object({ id: z.string(), kind: z.literal('wear_status'), garmentNames: z.array(z.string()), wornAt: z.string(), logged: z.boolean(), createdAt: z.string().datetime().optional() }),
+  z.object({ id: z.string(), kind: z.literal('action_status'), summary: z.string(), applied: z.boolean(), createdAt: z.string().datetime().optional() }),
 ]);
 
 const backupSchema = z.object({
@@ -95,7 +96,7 @@ export async function createWardrobeBackup(db: SQLiteDatabase) {
     garments,
     wears: wearRows.map((wear) => ({ id: wear.id, garmentIds: JSON.parse(wear.garment_ids) as string[], wornAt: wear.worn_at, note: wear.note })),
     memory: { user, recent },
-    chat,
+    chat: chat.filter((message) => message.kind !== 'image'),
   });
   const date = backup.createdAt.slice(0, 10);
   await exportBackupFile(JSON.stringify(backup), `wardrobe-backup-${date}.json`);
@@ -128,7 +129,7 @@ function restoredChat(backup: WardrobeBackup, imageUris: Map<string, string>) {
     lastWornAt: garment.lastWornAt,
   }]));
   return backup.chat.flatMap((message): PersistedChatMessage[] => {
-    if (message.kind !== 'wardrobe_results' && message.kind !== 'outfit_suggestion') return [message as PersistedChatMessage];
+    if (message.kind !== 'wardrobe_results' && message.kind !== 'outfit_suggestion' && message.kind !== 'wardrobe_insight') return [message as PersistedChatMessage];
     const resolved = message.garments.flatMap((garment) => garments.get(garment.id) ?? []);
     if (!resolved.length) return [];
     return [{ ...message, garments: resolved } as PersistedChatMessage];

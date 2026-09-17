@@ -26,6 +26,7 @@ export default function GarmentDetailsScreen() {
   const [sections, setSections] = useState<WardrobeSectionOption[]>([]);
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
+  const [description, setDescription] = useState('');
   const [sectionId, setSectionId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +42,7 @@ export default function GarmentDetailsScreen() {
         if (result) {
           setName(result.name);
           setTags(result.tags.join(', '));
+          setDescription(result.description ?? '');
           setSectionId(result.sectionId ?? sectionOptions[0]?.id ?? '');
         }
       })
@@ -55,7 +57,7 @@ export default function GarmentDetailsScreen() {
     setSaving(true);
     setError(null);
     try {
-      await coordinateGarmentUpdate(db, { garmentId: garment.id, name, description: garment.description ?? '', sectionId, tags: normalizedTags });
+      await coordinateGarmentUpdate(db, { garmentId: garment.id, name, description, sectionId, tags: normalizedTags });
       router.back();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'I could not update this garment.');
@@ -165,12 +167,20 @@ export default function GarmentDetailsScreen() {
                 <AppText variant="caption" style={styles.muted}>Separate tags with commas.</AppText>
               </View>
 
-              {garment.description ? (
-                <View style={styles.field}>
-                  <AppText variant="label">Garment details</AppText>
-                  <AppText style={styles.muted}>{garment.description}</AppText>
-                </View>
-              ) : null}
+              <View style={styles.field}>
+                <AppText variant="label">Garment details</AppText>
+                <TextInput
+                  accessibilityLabel="Garment details"
+                  maxLength={500}
+                  multiline
+                  onChangeText={setDescription}
+                  placeholder="Color, pattern, cut, brand, and distinctive details"
+                  placeholderTextColor={colors.inkMuted}
+                  style={[styles.input, styles.descriptionInput]}
+                  value={description}
+                />
+                <AppText variant="caption" style={styles.muted}>Corrections improve wardrobe search and Muse’s suggestions.</AppText>
+              </View>
 
               {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}
               <AppButton disabled={!name.trim() || !sectionId} label="Save changes" loading={saving} onPress={save} />
@@ -195,6 +205,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   field: { gap: spacing.sm },
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 12 },
   tagsInput: { minHeight: 76, textAlignVertical: 'top' },
+  descriptionInput: { minHeight: 112, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   orderButtons: { flexDirection: 'row', gap: spacing.sm },
   flexButton: { flex: 1 },

@@ -40,7 +40,7 @@ export default function SettingsScreen() {
   function confirmClearHistory() {
     Alert.alert(
       'Clear chat history?',
-      'This removes saved conversations from this device. Your wardrobe, Timeline, generated garment images, and personal memory will stay untouched.',
+      'This removes saved conversations and compressed attachment previews from this device. Your wardrobe, Timeline, generated garment images, and personal memory will stay untouched.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Clear history', style: 'destructive', onPress: clearHistory },

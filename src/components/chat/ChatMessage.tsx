@@ -32,7 +32,7 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
   if (message.kind === 'confirmation') return <ConfirmationCard {...message} />;
   if (message.kind === 'duplicate') return <DuplicateCandidateCard message={message} />;
   if (message.kind === 'garment_batch_confirmation') return <GarmentBatchConfirmationCard message={message} />;
-  if (message.kind === 'image') return <ExpandableImage badge="Attached" style={styles.imageBubble} uri={message.uri} />;
+  if (message.kind === 'image') return <ExpandableImage badge="Attached" expandedUri={message.expandedUri} style={styles.imageBubble} uri={message.uri} />;
   if (message.kind === 'wardrobe_results') return <WardrobeResultsCard garments={message.garments} />;
   if (message.kind === 'outfit_suggestion') return <OutfitSuggestionCard message={message} />;
   if (message.kind === 'wardrobe_insight') return <WardrobeInsightCard message={message} />;

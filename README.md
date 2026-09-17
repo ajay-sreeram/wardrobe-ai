@@ -31,8 +31,9 @@ The app currently includes:
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - all-pieces sorting for wardrobe order, least worn, not worn recently, newest, and garment name
 - compact sort controls and reliable grid resets when changing an all-pieces sort order
-- safe on-device Chat history across restarts, without retaining user-uploaded photos or stale confirmation cards
-- bounded Muse context: 12 recent messages plus a multi-step, read-only query loop over local wardrobe and Timeline data
+- safe on-device Chat history across restarts, without retaining full user-uploaded source photos or stale confirmation cards
+- small on-device compressed thumbnails for explicitly attached Chat photos, retained across restarts but excluded from backups
+- bounded Muse context with local date/time labels plus a multi-step, read-only query loop over local wardrobe and Timeline data
 - on-demand memory search plus LLM-managed durable fact additions, corrections, and explicit forgetting
 - three-attempt transient API recovery, scoped fallback messages, and device-local relative-date context
 - live plain-language agent stages and one-tap retry without duplicating the original Chat message
@@ -51,9 +52,9 @@ The app currently includes:
 
 Gallery scanning and advanced wardrobe editing are intentionally deferred.
 
-The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. A selected photo appears as a small, expandable, session-only attachment in Chat. That temporary picker file is sent to Gemini for garment analysis and standardized image generation, but is never copied into app storage. Only Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
+The app never scans the photo gallery. It can see only images the user explicitly selects from the system picker inside Chat. The temporary full-size picker file is sent to Gemini for garment analysis and standardized image generation, but is never copied into app storage. The app retains only a small compressed thumbnail for Chat continuity; clearing Chat history removes these thumbnails, and backups exclude them. Gemini's generated transparent garment PNG is retained after the user confirms an addition. Text-only chat messages are sent to Muse.
 
-Settings can export a versioned, readable JSON backup containing local wardrobe metadata, Timeline history, Markdown memory, safe Chat history, and generated garment images. Source photos and API keys are never included. Because the file contains personal data, it should be stored and shared privately. Restore validates the format and cross-record references before replacing local data.
+Settings can export a versioned, readable JSON backup containing local wardrobe metadata, Timeline history, Markdown memory, safe text/rich Chat history, and generated garment images. Source photos, compressed Chat thumbnails, and API keys are never included. Because the file contains personal data, it should be stored and shared privately. Restore validates the format and cross-record references before replacing local data.
 
 Before generating a new canonical image, the Wardrobe Agent shortlists at most two plausible existing garments using local metadata. Vision compares only those candidates and raises a duplicate review only for a conservative high-confidence match. Choosing “Use existing” avoids image generation and database duplication; choosing “Add as new” resumes canonical generation.
 

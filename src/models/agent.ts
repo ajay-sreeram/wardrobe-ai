@@ -53,9 +53,9 @@ export type WardrobeMutation =
   | { type: 'update_wear'; wearId: string; garmentIds: string[]; wornAt: string; note: string }
   | { type: 'delete_wear'; wearId: string };
 
-export type ChatMessage =
+type ChatMessageContent =
   | { id: string; kind: 'text'; role: 'assistant' | 'user'; text: string }
-  | { id: string; kind: 'image'; role: 'user'; uri: string; width: number; height: number }
+  | { id: string; kind: 'image'; role: 'user'; uri: string; width: number; height: number; durable?: boolean; expandedUri?: string }
   | { id: string; kind: 'status'; stage: AgentStage; text: string }
   | { id: string; kind: 'error'; text: string; retryable?: boolean }
   | { id: string; kind: 'conversation_boundary'; createdAt: string }
@@ -69,3 +69,5 @@ export type ChatMessage =
   | { id: string; kind: 'duplicate'; garmentName: string; category: string; description: string; colors: string[]; tags: string[]; sourceImageUri: string; sourceImageMimeType: string | null; existingGarmentId: string; existingGarmentName: string; existingImageUri: string; matchReason: string; matchConfidence: number; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
   | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
   | { id: string; kind: 'garment_batch_confirmation'; garments: GarmentBatchItem[]; userMessage: string; memoryFacts: string[]; wearContext: WearContext };
+
+export type ChatMessage = ChatMessageContent & { createdAt?: string };

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import type { ChatMessage } from '@/models/agent';
 import { readChatHistory, writeChatHistory, type PersistedChatMessage } from '@/storage/chatHistory';
+import { clearChatThumbnails, pruneChatThumbnails, removeChatThumbnail } from '@/storage/chatThumbnails';
 
 export type PendingChatImage = {
   id: string;
@@ -10,6 +11,9 @@ export type PendingChatImage = {
   height: number;
   fileName: string | null;
   mimeType: string | null;
+  thumbnailUri: string | null;
+  thumbnailWidth: number | null;
+  thumbnailHeight: number | null;
 };
 
 type ChatState = {
@@ -32,22 +36,28 @@ type ChatState = {
 };
 
 const previewMessages: ChatMessage[] = [
-  { id: 'preview-1', kind: 'text', role: 'assistant', text: 'Good morning. Want help choosing something, logging what you wore, or adding a garment?' },
+  { id: 'preview-1', kind: 'text', role: 'assistant', text: 'Good morning. Want help choosing something, logging what you wore, or adding a garment?', createdAt: new Date().toISOString() },
 ];
 
 const maximumPersistedMessages = 150;
-const persistedKinds = new Set<ChatMessage['kind']>(['text', 'error', 'conversation_boundary', 'wardrobe_results', 'outfit_suggestion', 'wardrobe_insight', 'wear_status', 'action_status']);
+const persistedKinds = new Set<ChatMessage['kind']>(['text', 'image', 'error', 'conversation_boundary', 'wardrobe_results', 'outfit_suggestion', 'wardrobe_insight', 'wear_status', 'action_status']);
 
 function saveHistory(messages: ChatMessage[]) {
   const safeMessages = messages
-    .filter((message): message is PersistedChatMessage => persistedKinds.has(message.kind))
-    .map((message) => message.kind === 'error' ? { id: message.id, kind: message.kind, text: message.text } : message)
+    .filter((message): message is PersistedChatMessage => persistedKinds.has(message.kind) && (message.kind !== 'image' || message.durable === true))
+    .map((message) => {
+      if (message.kind === 'error') return { id: message.id, kind: message.kind, text: message.text, createdAt: message.createdAt };
+      if (message.kind === 'image') return { ...message, expandedUri: undefined };
+      return message;
+    })
     .slice(-maximumPersistedMessages);
+  pruneChatThumbnails(safeMessages.flatMap((message) => message.kind === 'image' ? [message.uri] : []));
   writeChatHistory(safeMessages);
 }
 
 function appendMessages(state: ChatState, additions: ChatMessage[]) {
-  const messages = [...state.messages, ...additions];
+  const createdAt = new Date().toISOString();
+  const messages = [...state.messages, ...additions.map((message) => ({ ...message, createdAt: message.createdAt ?? createdAt }))];
   saveHistory(messages);
   return messages;
 }
@@ -60,22 +70,31 @@ export const useChatStore = create<ChatState>((set) => ({
   setDraft: (draft) => set({ draft }),
   hydrateHistory: async () => {
     const history = await readChatHistory();
+    pruneChatThumbnails(history.flatMap((message) => message.kind === 'image' ? [message.uri] : []));
     set({ historyReady: true, messages: history.length ? history : previewMessages });
   },
-  startNewConversation: () => set((state) => ({
-    draft: '',
-    messages: appendMessages(state, [
-      { id: `conversation-${Date.now()}`, kind: 'conversation_boundary', createdAt: new Date().toISOString() },
-      { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: 'Fresh start. What would you like help with?' },
-    ]),
-    pendingImages: [],
-  })),
+  startNewConversation: () => set((state) => {
+    for (const image of state.pendingImages) removeChatThumbnail(image.thumbnailUri);
+    return {
+      draft: '',
+      messages: appendMessages(state, [
+        { id: `conversation-${Date.now()}`, kind: 'conversation_boundary', createdAt: new Date().toISOString() },
+        { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: 'Fresh start. What would you like help with?' },
+      ]),
+      pendingImages: [],
+    };
+  }),
   clearHistory: () => {
     writeChatHistory([]);
+    clearChatThumbnails();
     set({ draft: '', messages: previewMessages, pendingImages: [] });
   },
   addPendingImages: (images) => set((state) => ({ pendingImages: [...state.pendingImages, ...images].slice(0, 4) })),
-  removePendingImage: (id) => set((state) => ({ pendingImages: state.pendingImages.filter((image) => image.id !== id) })),
+  removePendingImage: (id) => set((state) => {
+    const removed = state.pendingImages.find((image) => image.id === id);
+    removeChatThumbnail(removed?.thumbnailUri ?? null);
+    return { pendingImages: state.pendingImages.filter((image) => image.id !== id) };
+  }),
   sendMessage: (images, text) => set((state) => {
     const submittedText = (text ?? state.draft).trim();
     const additions: ChatMessage[] = [
@@ -90,7 +109,7 @@ export const useChatStore = create<ChatState>((set) => ({
   }),
   addMessages: (messages) => set((state) => ({ messages: appendMessages(state, messages) })),
   replaceMessage: (id, message) => set((state) => {
-    const messages = state.messages.map((item) => item.id === id ? message : item);
+    const messages = state.messages.map((item) => item.id === id ? { ...message, createdAt: message.createdAt ?? item.createdAt ?? new Date().toISOString() } : item);
     saveHistory(messages);
     return { messages };
   }),

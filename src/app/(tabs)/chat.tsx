@@ -16,6 +16,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { hasApiProxy } from '@/config/providers';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
+import { saveChatThumbnail } from '@/storage/chatThumbnails';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
@@ -48,6 +49,7 @@ export default function ChatScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
+        base64: true,
         mediaTypes: ['images'],
         orderedSelection: true,
         quality: 0.9,
@@ -56,14 +58,28 @@ export default function ChatScreen() {
       if (result.canceled) return;
 
       const batchId = Date.now();
-      addPendingImages(result.assets.map((asset, index) => ({
-        id: `observation-${batchId}-${index}`,
-        uri: asset.uri,
-        width: asset.width,
-        height: asset.height,
-        fileName: asset.fileName ?? null,
-        mimeType: asset.mimeType ?? null,
-      })));
+      const selected: PendingChatImage[] = [];
+      for (const [index, asset] of result.assets.entries()) {
+        const id = `observation-${batchId}-${index}`;
+        let thumbnail: ReturnType<typeof saveChatThumbnail> | null = null;
+        try {
+          thumbnail = asset.base64 ? saveChatThumbnail(asset.base64, id) : null;
+        } catch {
+          // The source photo remains usable for this message even if its small history preview cannot be created.
+        }
+        selected.push({
+          id,
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          fileName: asset.fileName ?? null,
+          mimeType: asset.mimeType ?? null,
+          thumbnailUri: thumbnail?.uri ?? null,
+          thumbnailWidth: thumbnail?.width ?? null,
+          thumbnailHeight: thumbnail?.height ?? null,
+        });
+      }
+      addPendingImages(selected);
     } catch {
       addError('I could not open the photo picker. Please try again.');
     }
@@ -76,14 +92,16 @@ export default function ChatScreen() {
     setSending(true);
     setFailedSubmission(null);
     try {
-      const imageMessages: ChatMessageModel[] = submittedImages.map((image) => ({
+      const imageMessages: ChatMessageModel[] = displayUserMessage ? submittedImages.map((image) => ({
         id: image.id,
-        kind: 'image',
-        role: 'user',
-        uri: image.uri,
-        width: image.width,
-        height: image.height,
-      }));
+        kind: 'image' as const,
+        role: 'user' as const,
+        uri: image.thumbnailUri ?? image.uri,
+        width: image.thumbnailWidth ?? image.width,
+        height: image.thumbnailHeight ?? image.height,
+        durable: Boolean(image.thumbnailUri),
+        expandedUri: image.thumbnailUri ? image.uri : undefined,
+      })) : [];
       if (displayUserMessage) sendMessage(imageMessages, submittedText);
 
       if (submittedImages.length) {

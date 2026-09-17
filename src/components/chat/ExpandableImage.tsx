@@ -21,10 +21,11 @@ type Props = {
   badge?: string;
   compactBadge?: boolean;
   details?: GarmentPreviewDetails;
+  expandedUri?: string;
   onPress?: () => void;
 };
 
-export function ExpandableImage({ uri, style, badge = 'Tap to view', compactBadge = false, details, onPress }: Props) {
+export function ExpandableImage({ uri, style, badge = 'Tap to view', compactBadge = false, details, expandedUri, onPress }: Props) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
@@ -48,7 +49,7 @@ export function ExpandableImage({ uri, style, badge = 'Tap to view', compactBadg
           <Pressable accessibilityLabel="Close full image" onPress={() => setExpanded(false)} style={styles.modalBackdrop} />
           <View style={[styles.modalCard, !details && styles.imageOnlyCard]}>
             <View style={[styles.fullImageWrap, !details && styles.imageOnlyWrap]}>
-              <Image contentFit="contain" source={{ uri }} style={styles.image} transition={150} />
+              <Image contentFit="contain" source={{ uri: expandedUri ?? uri }} style={styles.image} transition={150} />
             </View>
             {details ? (
               <ScrollView contentContainerStyle={styles.details} showsVerticalScrollIndicator={false}>

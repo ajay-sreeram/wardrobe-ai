@@ -2,6 +2,7 @@ import type { ChatMessage } from '@/models/agent';
 
 export type PersistedChatMessage = Extract<ChatMessage,
   | { kind: 'text' }
+  | { kind: 'image' }
   | { kind: 'error' }
   | { kind: 'conversation_boundary' }
   | { kind: 'wardrobe_results' }

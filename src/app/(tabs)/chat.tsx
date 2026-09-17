@@ -104,6 +104,31 @@ export default function ChatScreen() {
           return;
         }
 
+        const isNewWornOutfit = Boolean(
+          analysis.wearContext
+          && analysis.garments.length > 1
+          && analysis.garments.every((garment) => !('duplicateCandidate' in garment)),
+        );
+        if (isNewWornOutfit && analysis.wearContext) {
+          addMessages([{
+            id: `garment-batch-preview-${Date.now()}`,
+            kind: 'garment_batch_confirmation',
+            garments: analysis.garments.flatMap((garment) => 'canonicalImageUri' in garment ? [{
+              garmentName: garment.name,
+              description: garment.description,
+              tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 12),
+              canonicalImageUri: garment.canonicalImageUri,
+              suggestedSectionId: garment.suggestedSectionId,
+              suggestedSectionName: garment.suggestedSectionName,
+            }] : []),
+            userMessage: submittedText,
+            memoryFacts: analysis.memoryFacts,
+            wearContext: analysis.wearContext,
+          }]);
+          if (analysis.note) addAssistantMessage(analysis.note);
+          return;
+        }
+
         addMessages(analysis.garments.map((garment, index) => {
           const id = `garment-preview-${Date.now()}-${index}`;
           if ('duplicateCandidate' in garment) {

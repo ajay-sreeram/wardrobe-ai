@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { z } from 'zod';
 
-import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getArchivedGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, restoreGarment, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
+import { archiveGarment, createWardrobeSection, deleteWearRecord, getActiveGarment, getActiveGarments, getArchivedGarments, getWardrobeSectionDetails, getWardrobeSectionOptions, getWardrobeSections, getWearEntry, getWearTimeline, insertGarment, insertGarments, insertWearRecord, moveGarmentPosition, moveWardrobeSection, renameWardrobeSection, restoreGarment, setGarmentPositions, updateGarment, updateWearRecord } from '@/database/repository';
 import type { GarmentObservation } from '@/agents/vision';
 import type { Garment } from '@/models/wardrobe';
 import { persistCanonicalGarmentImage } from '@/storage/canonicalImages';
@@ -45,6 +45,20 @@ export async function addGarmentToWardrobe(db: SQLiteDatabase, request: z.input<
   const canonicalImageUri = await persistCanonicalGarmentImage(garment.canonicalImageUri, id);
   await insertGarment(db, { id, ...garment, canonicalImageUri });
   return id;
+}
+
+export async function addGarmentsToWardrobe(db: SQLiteDatabase, requests: z.input<typeof addGarmentRequestSchema>[]) {
+  const garments = z.array(addGarmentRequestSchema).min(1).max(12).parse(requests);
+  const prepared = await Promise.all(garments.map(async (garment, index) => {
+    const id = `garment-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      id,
+      ...garment,
+      canonicalImageUri: await persistCanonicalGarmentImage(garment.canonicalImageUri, id),
+    };
+  }));
+  await insertGarments(db, prepared);
+  return prepared.map((garment) => garment.id);
 }
 
 export async function listWardrobeSections(db: SQLiteDatabase) {

@@ -34,6 +34,15 @@ export type WardrobeChatGarment = {
 
 export type WearContext = { wornAt: string; note: string };
 
+export type GarmentBatchItem = {
+  garmentName: string;
+  description: string;
+  tags: string[];
+  canonicalImageUri: string;
+  suggestedSectionId: string;
+  suggestedSectionName: string;
+};
+
 export type WardrobeMutation =
   | { type: 'update_garment'; garmentId: string; name: string; description: string; sectionId: string; tags: string[] }
   | { type: 'archive_garment'; garmentId: string }
@@ -57,4 +66,5 @@ export type ChatMessage =
   | { id: string; kind: 'action_confirmation'; title: string; description: string; confirmLabel: string; action: WardrobeMutation; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'action_status'; summary: string; applied: boolean }
   | { id: string; kind: 'duplicate'; garmentName: string; category: string; description: string; colors: string[]; tags: string[]; sourceImageUri: string; sourceImageMimeType: string | null; existingGarmentId: string; existingGarmentName: string; existingImageUri: string; matchReason: string; matchConfidence: number; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
-  | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null };
+  | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
+  | { id: string; kind: 'garment_batch_confirmation'; garments: GarmentBatchItem[]; userMessage: string; memoryFacts: string[]; wearContext: WearContext };

@@ -4,7 +4,7 @@ import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, r
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
 import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
-import { addGarmentToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
+import { addGarmentToWardrobe, addGarmentsToWardrobe, archiveWardrobeGarment, createSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
 
@@ -249,6 +249,35 @@ export async function coordinateGarmentAddition({
   });
   await rememberGarmentAddition({ garmentId, garmentName, sectionName, userMessage, memoryFacts }).catch(() => undefined);
   return garmentId;
+}
+
+export async function coordinateGarmentBatchAddition({
+  db,
+  garments,
+  userMessage,
+  memoryFacts,
+}: {
+  db: SQLiteDatabase;
+  garments: { garmentName: string; sectionId: string; sectionName: string; description: string; tags: string[]; canonicalImageUri: string }[];
+  userMessage: string;
+  memoryFacts: string[];
+}) {
+  const garmentIds = await addGarmentsToWardrobe(db, garments.map((garment) => ({
+    name: garment.garmentName,
+    sectionId: garment.sectionId,
+    description: garment.description,
+    tags: garment.tags,
+    canonicalImageUri: garment.canonicalImageUri,
+  })));
+  await Promise.all(garments.map((garment, index) => rememberGarmentAddition({
+    garmentId: garmentIds[index],
+    garmentName: garment.garmentName,
+    sectionName: garment.sectionName,
+    userMessage,
+    memoryFacts: [],
+  }))).catch(() => undefined);
+  await rememberExplicitWardrobeFacts(memoryFacts).catch(() => undefined);
+  return garmentIds;
 }
 
 export async function coordinateExistingGarmentReference(input: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {

@@ -121,6 +121,37 @@ export async function insertGarment(db: SQLiteDatabase, garment: NewGarment) {
   });
 }
 
+export async function insertGarments(db: SQLiteDatabase, garments: NewGarment[]) {
+  await db.withTransactionAsync(async () => {
+    for (const garment of garments) {
+      const now = new Date().toISOString();
+      await db.runAsync(
+        `INSERT INTO garments
+          (id, name, section_id, description, tags, canonical_image, created_at, updated_at, wear_count, last_worn_at, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL,
+           (SELECT COALESCE(MAX(position), -1) + 1 FROM garments WHERE section_id = ?))`,
+        garment.id,
+        garment.name,
+        garment.sectionId,
+        garment.description,
+        JSON.stringify(garment.tags),
+        garment.canonicalImageUri,
+        now,
+        now,
+        garment.sectionId,
+      );
+      await db.runAsync(
+        'INSERT INTO garment_images (id, garment_id, image_path, image_type, created_at) VALUES (?, ?, ?, ?, ?)',
+        `image-${garment.id}`,
+        garment.id,
+        garment.canonicalImageUri,
+        'canonical',
+        now,
+      );
+    }
+  });
+}
+
 export async function updateGarment(db: SQLiteDatabase, garmentId: string, update: GarmentUpdate) {
   const result = await db.runAsync(
     `UPDATE garments

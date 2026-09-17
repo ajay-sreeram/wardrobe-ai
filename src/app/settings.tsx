@@ -1,24 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  AppleAuthenticationButton,
-  AppleAuthenticationButtonStyle,
-  AppleAuthenticationButtonType,
-} from 'expo-apple-authentication';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import {
-  isAppleAccountAvailable,
-  readAccountSession,
-  readUsageSummary,
-  signInWithApple,
-  signOutAccount,
-  type AccountSession,
-  type UsageSummary,
-} from '@/auth/apple';
 import { chooseWardrobeBackup, createWardrobeBackup, restoreWardrobeBackup, type WardrobeBackup } from '@/backup';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
@@ -31,7 +17,7 @@ import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 export default function SettingsScreen() {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const db = useSQLiteContext();
@@ -40,18 +26,6 @@ export default function SettingsScreen() {
   const themePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
   const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
-  const [account, setAccount] = useState<AccountSession | null>(null);
-  const [usage, setUsage] = useState<UsageSummary | null>(null);
-  const [appleAvailable, setAppleAvailable] = useState(false);
-  const [accountBusy, setAccountBusy] = useState(false);
-
-  useEffect(() => {
-    void Promise.all([isAppleAccountAvailable(), readAccountSession()]).then(async ([available, session]) => {
-      setAppleAvailable(available);
-      setAccount(session);
-      if (session) setUsage(await readUsageSummary().catch(() => null));
-    });
-  }, []);
 
   const wardrobeRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
     { icon: 'layers-outline', label: 'Manage sections', value: '4 sections' },
@@ -116,26 +90,6 @@ export default function SettingsScreen() {
       Alert.alert('Could not read backup', cause instanceof Error ? cause.message : 'Choose a valid Wardrobe backup.');
     }
   }
-
-  async function connectAppleAccount() {
-    setAccountBusy(true);
-    try {
-      const session = await signInWithApple();
-      setAccount(session);
-      setUsage(await readUsageSummary().catch(() => null));
-    } catch (cause) {
-      if (cause instanceof Error && cause.message.toLowerCase().includes('cancel')) return;
-      Alert.alert('Could not sign in', cause instanceof Error ? cause.message : 'Please try again.');
-    } finally {
-      setAccountBusy(false);
-    }
-  }
-
-  async function disconnectAppleAccount() {
-    await signOutAccount();
-    setAccount(null);
-    setUsage(null);
-  }
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -197,43 +151,6 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <AppText variant="caption" style={styles.sectionTitle}>Account & API usage</AppText>
-        <Card style={styles.accountCard}>
-          <View style={styles.accountHeading}>
-            <View style={styles.localIcon}><Ionicons color={colors.moss} name="person-circle-outline" size={24} /></View>
-            <View style={styles.flex}>
-              <AppText variant="label">{account ? 'Apple account connected' : 'Optional account'}</AppText>
-              <AppText variant="caption" style={styles.muted}>
-                {account
-                  ? 'Usage is counted privately without storing your email, prompts, photos, or wardrobe data.'
-                  : 'Connect Apple to measure your Muse and image usage across legitimate app sessions.'}
-              </AppText>
-            </View>
-          </View>
-          {account && usage ? (
-            <View style={styles.usageRow}>
-              <View style={styles.usageMetric}><AppText variant="title">{usage.museRequests}</AppText><AppText variant="caption" style={styles.muted}>Muse calls</AppText></View>
-              <View style={styles.usageMetric}><AppText variant="title">{usage.geminiRequests}</AppText><AppText variant="caption" style={styles.muted}>Image calls</AppText></View>
-              <View style={styles.usageMetric}><AppText variant="title">{usage.inputTokens + usage.outputTokens}</AppText><AppText variant="caption" style={styles.muted}>Tokens</AppText></View>
-            </View>
-          ) : null}
-          {account ? (
-            <AppButton label="Disconnect account" onPress={() => { void disconnectAppleAccount(); }} tone="quiet" />
-          ) : appleAvailable ? (
-            <View style={accountBusy && styles.disabled} pointerEvents={accountBusy ? 'none' : 'auto'}>
-              <AppleAuthenticationButton
-                buttonStyle={isDark ? AppleAuthenticationButtonStyle.WHITE : AppleAuthenticationButtonStyle.BLACK}
-                buttonType={AppleAuthenticationButtonType.CONTINUE}
-                cornerRadius={radius.pill}
-                onPress={() => { void connectAppleAccount(); }}
-                style={styles.appleButton}
-              />
-            </View>
-          ) : (
-            <AppText variant="caption" style={styles.warning}>Available after installing the Wardrobe development build on iPhone.</AppText>
-          )}
-        </Card>
-
         <AppText variant="caption" style={styles.sectionTitle}>Your data</AppText>
         <Card style={styles.localCard}>
           <View style={styles.localIcon}><Ionicons color={colors.moss} name="phone-portrait-outline" size={22} /></View>
@@ -283,12 +200,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   group: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', paddingHorizontal: spacing.md },
   chatCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   dataCard: { gap: spacing.md },
-  accountCard: { gap: spacing.md },
-  accountHeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  appleButton: { height: 46, width: '100%' },
-  disabled: { opacity: 0.5 },
-  usageRow: { backgroundColor: colors.mossSoft, borderRadius: radius.md, flexDirection: 'row', padding: spacing.md },
-  usageMetric: { alignItems: 'center', flex: 1, gap: 2 },
   backupActions: { flexDirection: 'row', gap: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 58 },
   rowBorder: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },

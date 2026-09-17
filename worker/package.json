@@ -12,7 +12,6 @@
     "wrangler": "^4.132.0"
   },
   "dependencies": {
-    "jose": "^6.2.12",
     "node-app-attest": "^1.0.1"
   }
 }

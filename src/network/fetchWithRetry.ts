@@ -1,4 +1,3 @@
-import { accountRequestInit } from '@/auth/apple';
 import { authenticatedRequestInit, invalidateIntegritySession } from '@/network/appIntegrity';
 
 const maximumAttempts = 3;
@@ -15,8 +14,7 @@ export async function fetchWithRetry(url: string, init: RequestInit, timeoutMs: 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const deviceAuthenticatedInit = await authenticatedRequestInit(url, init);
-      const authenticatedInit = await accountRequestInit(deviceAuthenticatedInit);
+      const authenticatedInit = await authenticatedRequestInit(url, init);
       const response = await fetch(url, { ...authenticatedInit, signal: controller.signal });
       if (response.status === 401 && response.headers.get('X-Wardrobe-Auth') === 'required' && attempt < maximumAttempts) {
         await invalidateIntegritySession();

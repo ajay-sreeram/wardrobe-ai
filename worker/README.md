@@ -43,11 +43,3 @@ Before enabling enforcement:
 5. Deploy with `INTEGRITY_MODE` set to `enforce`, test Muse and garment generation, then use `enforce-production` for the App Store build and change the entitlement to `production`.
 
 API calls then acquire short-lived sessions only after the Worker validates a one-time Apple attestation or assertion. The session signing key is the encrypted `SESSION_SECRET` Worker binding; it is never included in the app.
-
-## Accounts and API usage
-
-Sign in with Apple is optional during development. The Worker verifies Apple's identity token, converts its subject into a keyed pseudonymous ID, and never stores the user's email, name, prompts, photos, or wardrobe content. Signed-in usage is counted exactly in D1 by UTC day: Muse requests, Gemini requests, failed provider responses, and provider-reported input/output tokens.
-
-Before installing the native development build, enable both **Sign in with Apple** and **App Attest** for the `com.sreeram-ajay.wardrobe-ai` App ID in the Apple Developer portal, then refresh the provisioning profile in Xcode. Expo adds the corresponding native entitlements from `app.json`.
-
-Aggregate request analytics can optionally be enabled by adding an `API_ANALYTICS` Analytics Engine binding. The exact D1 ledger remains authoritative because Analytics Engine may sample high-volume data. If Analytics Engine is not enabled on the Cloudflare account, the Worker continues normally without it.

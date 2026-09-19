@@ -16,6 +16,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { hasApiProxy } from '@/config/providers';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
+import { useLaunchContentStore } from '@/state/launchContent';
 import { saveChatThumbnail } from '@/storage/chatThumbnails';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
@@ -26,7 +27,9 @@ export default function ChatScreen() {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
-  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, startNewConversation } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, setWelcomeText, startNewConversation } = useChatStore();
+  const launchContent = useLaunchContentStore((state) => state.content);
+  const ensureLaunchContent = useLaunchContentStore((state) => state.ensureLoaded);
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
@@ -39,6 +42,10 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!historyReady) void hydrateHistory();
   }, [historyReady, hydrateHistory]);
+
+  useEffect(() => { void ensureLaunchContent(db); }, [db, ensureLaunchContent]);
+
+  useEffect(() => { setWelcomeText(launchContent.greeting); }, [launchContent.greeting, setWelcomeText]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -106,7 +113,7 @@ export default function ChatScreen() {
 
       if (submittedImages.length) {
         if (!hasApiProxy()) {
-          addError('Muse is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
+          addError('The wardrobe assistant is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
           return;
         }
 
@@ -192,7 +199,7 @@ export default function ChatScreen() {
       }
 
       if (!hasApiProxy()) {
-        addError('Muse is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
+        addError('The wardrobe assistant is not connected. Set WARDROBE_API_BASE_URL to the deployed API Worker and restart Expo.');
         return;
       }
 
@@ -278,7 +285,7 @@ export default function ChatScreen() {
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
-          ListFooterComponent={activeMessageCount === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} /> : null}
+          ListFooterComponent={activeMessageCount === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} starters={launchContent.starters} /> : null}
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} onRetry={item.kind === 'error' && item.id === failedSubmission?.errorId ? handleRetry : undefined} />}
         />

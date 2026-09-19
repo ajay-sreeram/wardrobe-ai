@@ -2,54 +2,30 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
+import type { LaunchStarter } from '@/content/launchContent';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
-const starters = [
-  {
-    icon: 'sparkles-outline' as const,
-    title: 'Dress me today',
-    subtitle: 'Build an outfit from my wardrobe',
-    prompt: 'Help me choose an outfit for today.',
-  },
-  {
-    icon: 'refresh-outline' as const,
-    title: 'Rediscover a piece',
-    subtitle: 'Bring something forgotten back',
-    prompt: "Show me something I haven't worn recently and help me style it.",
-  },
-  {
-    icon: 'analytics-outline' as const,
-    title: 'Wardrobe check-in',
-    subtitle: 'Find useful patterns and forgotten pieces',
-    prompt: 'Give me a few useful wardrobe insights based on what I own, what I wear, and my saved preferences.',
-  },
-  {
-    icon: 'today-outline' as const,
-    title: 'Log today’s outfit',
-    subtitle: 'Tell Muse what I wore',
-    prompt: 'Help me log what I wore today.',
-  },
-];
+const icons = ['sparkles-outline', 'refresh-outline', 'analytics-outline', 'today-outline'] as const;
 
-export function StarterActions({ disabled, onSelect }: { disabled: boolean; onSelect: (prompt: string) => void }) {
+export function StarterActions({ disabled, onSelect, starters }: { disabled: boolean; onSelect: (prompt: string) => void; starters: LaunchStarter[] }) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
-      <AppText variant="caption" style={styles.eyebrow}>Try asking Muse</AppText>
+      <AppText variant="caption" style={styles.eyebrow}>Try asking</AppText>
       <View style={styles.grid}>
-        {starters.map((starter) => (
+        {starters.map((starter, index) => (
           <Pressable
             accessibilityHint={starter.subtitle}
             accessibilityLabel={starter.title}
             accessibilityRole="button"
             disabled={disabled}
-            key={starter.title}
+            key={`${index}-${starter.title}`}
             onPress={() => onSelect(starter.prompt)}
             style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && styles.disabled]}>
             <View style={styles.icon}>
-              <Ionicons color={colors.clay} name={starter.icon} size={20} />
+              <Ionicons color={colors.clay} name={icons[index] ?? 'chatbubble-ellipses-outline'} size={20} />
             </View>
             <AppText variant="label">{starter.title}</AppText>
             <AppText variant="caption" style={styles.subtitle}>{starter.subtitle}</AppText>

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { ChatMessage } from '@/models/agent';
 import { readChatHistory, writeChatHistory, type PersistedChatMessage } from '@/storage/chatHistory';
 import { clearChatThumbnails, pruneChatThumbnails, removeChatThumbnail } from '@/storage/chatThumbnails';
+import { fallbackLaunchContent } from '@/content/launchContent';
 
 export type PendingChatImage = {
   id: string;
@@ -21,7 +22,9 @@ type ChatState = {
   historyReady: boolean;
   messages: ChatMessage[];
   pendingImages: PendingChatImage[];
+  welcomeText: string;
   setDraft: (draft: string) => void;
+  setWelcomeText: (text: string) => void;
   hydrateHistory: () => Promise<void>;
   startNewConversation: () => void;
   clearHistory: () => void;
@@ -35,9 +38,9 @@ type ChatState = {
   addAssistantMessage: (text: string) => void;
 };
 
-const previewMessages: ChatMessage[] = [
-  { id: 'preview-1', kind: 'text', role: 'assistant', text: 'Good morning. Want help choosing something, logging what you wore, or adding a garment?', createdAt: new Date().toISOString() },
-];
+function welcomeMessage(text: string, id = 'preview-1'): ChatMessage {
+  return { id, kind: 'text', role: 'assistant', text, createdAt: new Date().toISOString() };
+}
 
 const maximumPersistedMessages = 150;
 const persistedKinds = new Set<ChatMessage['kind']>(['text', 'image', 'error', 'conversation_boundary', 'wardrobe_results', 'outfit_suggestion', 'wardrobe_insight', 'wear_status', 'action_status']);
@@ -65,13 +68,25 @@ function appendMessages(state: ChatState, additions: ChatMessage[]) {
 export const useChatStore = create<ChatState>((set) => ({
   draft: '',
   historyReady: false,
-  messages: previewMessages,
+  messages: [welcomeMessage(fallbackLaunchContent.greeting)],
   pendingImages: [],
+  welcomeText: fallbackLaunchContent.greeting,
   setDraft: (draft) => set({ draft }),
+  setWelcomeText: (welcomeText) => set((state) => {
+    const boundaryIndex = state.messages.reduce((latest, message, index) => message.kind === 'conversation_boundary' ? index : latest, -1);
+    const activeMessages = state.messages.slice(boundaryIndex + 1);
+    const currentWelcome = activeMessages.length === 1 && activeMessages[0].kind === 'text' && activeMessages[0].id.startsWith('preview-');
+    return {
+      welcomeText,
+      messages: currentWelcome
+        ? state.messages.map((message) => message.id === activeMessages[0].id ? welcomeMessage(welcomeText, message.id) : message)
+        : state.messages,
+    };
+  }),
   hydrateHistory: async () => {
     const history = await readChatHistory();
     pruneChatThumbnails(history.flatMap((message) => message.kind === 'image' ? [message.uri] : []));
-    set({ historyReady: true, messages: history.length ? history : previewMessages });
+    set((state) => ({ historyReady: true, messages: history.length ? history : [welcomeMessage(state.welcomeText)] }));
   },
   startNewConversation: () => set((state) => {
     for (const image of state.pendingImages) removeChatThumbnail(image.thumbnailUri);
@@ -79,7 +94,7 @@ export const useChatStore = create<ChatState>((set) => ({
       draft: '',
       messages: appendMessages(state, [
         { id: `conversation-${Date.now()}`, kind: 'conversation_boundary', createdAt: new Date().toISOString() },
-        { id: `assistant-${Date.now()}`, kind: 'text', role: 'assistant', text: 'Fresh start. What would you like help with?' },
+        welcomeMessage(state.welcomeText, `preview-${Date.now()}`),
       ]),
       pendingImages: [],
     };
@@ -87,7 +102,7 @@ export const useChatStore = create<ChatState>((set) => ({
   clearHistory: () => {
     writeChatHistory([]);
     clearChatThumbnails();
-    set({ draft: '', messages: previewMessages, pendingImages: [] });
+    set((state) => ({ draft: '', messages: [welcomeMessage(state.welcomeText)], pendingImages: [] }));
   },
   addPendingImages: (images) => set((state) => ({ pendingImages: [...state.pendingImages, ...images].slice(0, 4) })),
   removePendingImage: (id) => set((state) => {

@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { forgetExplicitWardrobeFacts, rememberConversation, readMemoryContext, rememberExistingGarmentReference, rememberExplicitWardrobeFacts, rememberGarmentAddition, rememberGarmentArchive, rememberGarmentRestore, rememberWardrobeChange, rememberWear, rememberWearCorrection, rememberWearDeletion } from '@/agents/memory';
 import { specialistRequestSchema, type ChatMessage, type SpecialistRequest, type WardrobeMutation } from '@/models/agent';
 import { analyzeGarmentImages, compareGarmentAgainstCandidates, generateCanonicalGarmentImage, type GarmentObservation } from '@/agents/vision';
-import { requestImageObservationPlan, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
+import { requestImageObservationPlan, requestLaunchContent, requestNaturalGarmentPresentation, requestWardrobeAwareReply } from '@/agents/coordinator/muse';
 import { addGarmentToWardrobe, addGarmentsToWardrobe, archiveWardrobeGarment, createSection, deleteSection, deleteWardrobeWear, findPotentialDuplicateCandidates, listWardrobeSections, moveSection, moveWardrobeGarment, readArchivedWardrobeCatalog, readWardrobeCatalog, readWardrobeWear, readWardrobeWearHistory, recordWardrobeWear, renameSection, reorderWardrobeGarments, restoreWardrobeGarment, updateWardrobeGarment, updateWardrobeWear } from '@/agents/wardrobe';
 import { removeFlatBackgroundToPng } from '@/image/removeFlatBackground';
 import { saveGeneratedGarmentPreview } from '@/storage/canonicalImages';
@@ -204,6 +204,33 @@ export async function coordinateTextConversation(db: SQLiteDatabase, userMessage
     } : null,
     actionProposal: reply.proposedAction ? describeWardrobeMutation(reply.proposedAction, byId, archivedById, sectionById, wearById) : null,
   };
+}
+
+export async function coordinateLaunchContent(db: SQLiteDatabase) {
+  const [memory, wardrobe, wearHistory] = await Promise.all([
+    readMemoryContext(),
+    readWardrobeCatalog(db),
+    readWardrobeWearHistory(db, 10),
+  ]);
+  const sectionCounts = Object.fromEntries(wardrobe.reduce((counts, garment) => {
+    counts.set(garment.sectionName, (counts.get(garment.sectionName) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>()));
+  const memoryExcerpt = memory.length <= 5_000 ? memory : `${memory.slice(0, 2_500)}\n…\n${memory.slice(-2_500)}`;
+  return requestLaunchContent({
+    localDate: localDateContext(),
+    wardrobe: {
+      totalGarments: wardrobe.length,
+      sectionCounts,
+      recentlyAdded: [...wardrobe]
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .slice(0, 12)
+        .map((garment) => ({ name: garment.name, sectionName: garment.sectionName, tags: garment.tags })),
+    },
+    recentTimeline: wearHistory.map((wear) => ({ wornAt: wear.wornAt, context: wear.context, garmentNames: wear.garments.map((garment) => garment.name) })),
+    memoryExcerpt,
+    variationSeed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  });
 }
 
 function describeWardrobeMutation(

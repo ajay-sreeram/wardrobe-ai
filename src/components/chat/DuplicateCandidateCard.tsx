@@ -57,7 +57,7 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
 
   async function addAsNew() {
     if (!hasApiProxy()) {
-      setError('Muse is not connected to the API Worker.');
+      setError('The wardrobe assistant is not connected to the API Worker.');
       return;
     }
     setGenerating(true);

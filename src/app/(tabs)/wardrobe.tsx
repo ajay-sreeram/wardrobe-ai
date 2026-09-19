@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
@@ -19,6 +19,7 @@ import type { WardrobeSection } from '@/models/wardrobe';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 import { useChatStore } from '@/state/chat';
+import { useLaunchContentStore } from '@/state/launchContent';
 
 type GridSort = 'wardrobe' | 'least-worn' | 'oldest-worn' | 'newest' | 'name';
 
@@ -37,6 +38,8 @@ export default function WardrobeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const setDraft = useChatStore((state) => state.setDraft);
+  const launchContent = useLaunchContentStore((state) => state.content);
+  const ensureLaunchContent = useLaunchContentStore((state) => state.ensureLoaded);
   const [sections, setSections] = useState<WardrobeSection[]>([]);
   const [organizingSectionId, setOrganizingSectionId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'sections' | 'grid'>('sections');
@@ -58,6 +61,7 @@ export default function WardrobeScreen() {
   }, [db]);
 
   useFocusEffect(useCallback(() => { void loadSections(); }, [loadSections]));
+  useEffect(() => { void ensureLaunchContent(db); }, [db, ensureLaunchContent]);
 
   const garmentCount = sections.reduce((total, section) => total + section.garments.length, 0);
   const allGarments = useMemo(() => sections.flatMap((section) => section.garments), [sections]);
@@ -86,8 +90,8 @@ export default function WardrobeScreen() {
     router.push('/(tabs)/chat');
   }
 
-  function askMuseForInsights() {
-    setDraft('Give me a few useful wardrobe insights based on what I own, what I wear, and my saved preferences.');
+  function askForInsights() {
+    setDraft(launchContent.wardrobeCheckIn.prompt);
     router.push('/(tabs)/chat');
   }
 
@@ -145,11 +149,11 @@ export default function WardrobeScreen() {
       </View>
 
       {garmentCount ? (
-        <Pressable accessibilityHint="Opens Chat with a wardrobe check-in ready" accessibilityRole="button" onPress={askMuseForInsights} style={({ pressed }) => [styles.insightPrompt, pressed && styles.insightPromptPressed]}>
+        <Pressable accessibilityHint="Opens Chat with a wardrobe check-in ready" accessibilityRole="button" onPress={askForInsights} style={({ pressed }) => [styles.insightPrompt, pressed && styles.insightPromptPressed]}>
           <View style={styles.introIcon}><Ionicons color={colors.clay} name="analytics-outline" size={22} /></View>
           <View style={styles.flex}>
-            <AppText variant="label">Ask Muse for a wardrobe check-in</AppText>
-            <AppText variant="caption" style={styles.muted}>Explore wear patterns, pairings, and pieces worth rediscovering.</AppText>
+            <AppText variant="label">{launchContent.wardrobeCheckIn.title}</AppText>
+            <AppText variant="caption" style={styles.muted}>{launchContent.wardrobeCheckIn.subtitle}</AppText>
           </View>
           <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
         </Pressable>

@@ -181,6 +181,7 @@ export type WardrobeCatalogItem = {
   description: string | null;
   tags: string[];
   canonicalImage: string | null;
+  createdAt: string;
   wearCount: number;
   lastWornAt: string | null;
 };
@@ -202,6 +203,7 @@ export async function readWardrobeCatalog(db: SQLiteDatabase): Promise<WardrobeC
     description: garment.description,
     tags: garment.tags,
     canonicalImage: garment.canonicalImage,
+    createdAt: garment.createdAt,
     wearCount: garment.wearCount,
     lastWornAt: garment.lastWornAt,
   })));
@@ -218,6 +220,7 @@ export async function readArchivedWardrobeCatalog(db: SQLiteDatabase): Promise<W
     description: garment.description,
     tags: garment.tags,
     canonicalImage: garment.canonicalImage,
+    createdAt: garment.createdAt,
     wearCount: garment.wearCount,
     lastWornAt: garment.lastWornAt,
   }));

@@ -34,6 +34,7 @@ The app currently includes:
 - safe on-device Chat history across restarts, without retaining full user-uploaded source photos or stale confirmation cards
 - small on-device compressed thumbnails for explicitly attached Chat photos, retained across restarts but excluded from backups
 - bounded Muse context with local date/time labels plus a multi-step, read-only query loop over local wardrobe and Timeline data
+- date-aware Muse inventory queries across active garments, archived garments, Timeline, and both Markdown memory files
 - on-demand memory search plus LLM-managed durable fact additions, corrections, and explicit forgetting
 - three-attempt transient API recovery, scoped fallback messages, and device-local relative-date context
 - live plain-language agent stages and one-tap retry without duplicating the original Chat message

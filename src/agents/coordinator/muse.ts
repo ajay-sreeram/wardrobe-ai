@@ -55,7 +55,7 @@ const wardrobeMutationSchema = z.discriminatedUnion('type', [
 
 const wardrobeConversationSchema = z.object({
   answer: z.string().min(1),
-  garmentIds: z.array(z.string()).max(12),
+  garmentIds: z.array(z.string()).max(12).default([]),
   outfitSuggestions: z.array(z.object({
     kind: z.enum(['outfit', 'packing', 'capsule']).default('outfit'),
     title: z.string().trim().min(1).max(80),
@@ -68,42 +68,46 @@ const wardrobeConversationSchema = z.object({
     summary: z.string().trim().min(1).max(240),
     garmentIds: z.array(z.string().min(1)).min(1).max(8),
   })).max(3).default([]),
-  memoryFacts: z.array(z.string().min(1).max(240)).max(4),
+  memoryFacts: z.array(z.string().min(1).max(240)).max(4).default([]),
   forgottenMemoryFacts: z.array(z.string().min(1).max(240)).max(4).default([]),
   proposedWear: z.object({
     garmentIds: z.array(z.string().min(1)).min(1).max(12),
     wornAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     note: z.string().max(160),
-  }).nullable(),
-  proposedAction: wardrobeMutationSchema.nullable(),
+  }).nullable().default(null),
+  proposedAction: wardrobeMutationSchema.nullable().default(null),
 });
 
 const wardrobeReadQuerySchema = z.discriminatedUnion('tool', [
   z.object({
     tool: z.literal('search_wardrobe'),
-    query: z.string().max(120),
-    sectionId: z.string().nullable(),
-    sort: z.enum(['wardrobe_order', 'least_worn', 'most_worn', 'oldest_worn', 'name']),
-    limit: z.number().int().min(1).max(20),
+    query: z.string().max(120).default(''),
+    sectionId: z.string().nullable().default(null),
+    createdFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    createdTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    sort: z.enum(['wardrobe_order', 'least_worn', 'most_worn', 'oldest_worn', 'newest', 'name']).default('wardrobe_order'),
+    limit: z.number().int().min(1).max(20).default(12),
   }),
   z.object({
     tool: z.literal('search_archived'),
-    query: z.string().max(120),
-    limit: z.number().int().min(1).max(20),
+    query: z.string().max(120).default(''),
+    createdFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    createdTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    limit: z.number().int().min(1).max(20).default(12),
   }),
   z.object({
     tool: z.literal('query_timeline'),
-    query: z.string().max(120),
-    dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    garmentIds: z.array(z.string()).max(12),
-    limit: z.number().int().min(1).max(20),
+    query: z.string().max(120).default(''),
+    dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    garmentIds: z.array(z.string()).max(12).default([]),
+    limit: z.number().int().min(1).max(20).default(20),
   }),
   z.object({
     tool: z.literal('search_memory'),
-    query: z.string().max(120),
-    source: z.enum(['durable', 'recent', 'all']),
-    limit: z.number().int().min(1).max(20),
+    query: z.string().max(120).default(''),
+    source: z.enum(['durable', 'recent', 'all']).default('all'),
+    limit: z.number().int().min(1).max(20).default(10),
   }),
 ]);
 
@@ -249,11 +253,20 @@ function safeGarment(item: WardrobeCatalogItem) {
   return safe;
 }
 
+function deviceDateKey(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return value.slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalogItem[], archivedWardrobe: WardrobeCatalogItem[], wearHistory: WardrobeWearHistoryItem[], memoryContext: string) {
   if (query.tool === 'search_wardrobe') {
     const tokens = searchTokens(query.query);
     const matching = wardrobe.filter((item) => {
       if (query.sectionId && item.sectionId !== query.sectionId) return false;
+      const createdDate = deviceDateKey(item.createdAt);
+      if (query.createdFrom && createdDate < query.createdFrom) return false;
+      if (query.createdTo && createdDate > query.createdTo) return false;
       if (!tokens.length) return true;
       const searchable = [item.name, item.sectionName, item.description ?? '', ...item.tags].join(' ').toLocaleLowerCase();
       return tokens.every((token) => searchable.includes(token));
@@ -262,6 +275,7 @@ function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalo
       if (query.sort === 'least_worn') return left.wearCount - right.wearCount;
       if (query.sort === 'most_worn') return right.wearCount - left.wearCount;
       if (query.sort === 'oldest_worn') return (left.lastWornAt ?? '').localeCompare(right.lastWornAt ?? '');
+      if (query.sort === 'newest') return right.createdAt.localeCompare(left.createdAt);
       if (query.sort === 'name') return left.name.localeCompare(right.name);
       return wardrobe.indexOf(left) - wardrobe.indexOf(right);
     });
@@ -271,6 +285,9 @@ function runWardrobeReadQuery(query: WardrobeReadQuery, wardrobe: WardrobeCatalo
   if (query.tool === 'search_archived') {
     const tokens = searchTokens(query.query);
     const matching = archivedWardrobe.filter((item) => {
+      const createdDate = deviceDateKey(item.createdAt);
+      if (query.createdFrom && createdDate < query.createdFrom) return false;
+      if (query.createdTo && createdDate > query.createdTo) return false;
       if (!tokens.length) return true;
       const searchable = [item.name, item.sectionName, item.description ?? '', ...item.tags].join(' ').toLocaleLowerCase();
       return tokens.every((token) => searchable.includes(token));
@@ -326,10 +343,13 @@ async function gatherWardrobeReadContext(
 You may query repeatedly before answering. Ask only for data needed to answer accurately, resolve referenced garments,
 calculate counts, recommend outfits, manage durable memory, or target a requested wardrobe/Timeline change. Use search_archived
 when the person asks about or wants to restore a removed piece. Use an empty query string to browse
-by sort or date. Search matches garment names, sections, descriptions, and tags. Try natural synonyms in separate queries
+by sort or date. search_wardrobe and search_archived return totalMatches before the result limit, so use totalMatches for
+counts. Their createdFrom and createdTo fields filter the date a garment was confirmed into the wardrobe. For questions
+about garments added, shared, imported, or saved during a period, query both active and archived garments with those date
+filters; do not substitute Timeline wear dates. Search matches garment names, sections, descriptions, and tags. Try natural synonyms in separate queries
 when useful. Timeline queries can filter dates, text, and garments worn together. Search memory when a preference, personal
-term, prior reason, or correction may matter. Durable memory contains preferences and personal terminology; recent memory
-contains a short activity trail. Return no more data than necessary.
+term, prior reason, or correction may matter. search_memory reads the full local USER.md when source is durable and the full
+local RECENT.md activity trail when source is recent. An empty memory query browses the selected source. Return no more data than necessary.
 For a wardrobe check-in or request for proactive insights, let the model investigate rather than applying fixed rules: query
 the wardrobe, Timeline, and memory as needed to find evidence-backed rediscovery, rotation, pairing, or habit observations.
 Broad empty-query reads are allowed when the person asks for an overview. Do not manufacture patterns from summaries alone.
@@ -337,8 +357,8 @@ For a follow-up that swaps one piece in a recent outfit option, preserve its oth
 query only plausible replacements matching the new constraint. The first, second, or last look refers to the displayed order
 of the most recent consecutive outfit options. Search memory when explicit feedback may reinforce or correct a preference.
 If the supplied query results are sufficient, return an empty queries array. Never answer the person in this step.
-Return JSON only: {"queries":[{"tool":"search_wardrobe","query":"white pants","sectionId":null,"sort":"wardrobe_order","limit":12}]}
-or {"queries":[{"tool":"search_archived","query":"purple saree","limit":12}]}
+Return JSON only: {"queries":[{"tool":"search_wardrobe","query":"white pants","sectionId":null,"createdFrom":null,"createdTo":null,"sort":"wardrobe_order","limit":12}]}
+or {"queries":[{"tool":"search_archived","query":"purple saree","createdFrom":null,"createdTo":null,"limit":12}]}
 or {"queries":[{"tool":"query_timeline","query":"college","dateFrom":null,"dateTo":null,"garmentIds":[],"limit":20}]}
 or {"queries":[{"tool":"search_memory","query":"wedding dress","source":"all","limit":10}]}.`,
       },
@@ -438,8 +458,7 @@ export async function requestWardrobeAwareReply(
   let readContext: unknown;
   try {
     readContext = await gatherWardrobeReadContext(userMessage, wardrobe, archivedWardrobe, sections, wearHistory, memoryContext, localDate, conversationContext, onProgress);
-  } catch (error) {
-    if (error instanceof MuseRequestError) throw error;
+  } catch {
     readContext = {
       summary: wardrobeSummary(wardrobe),
       fallbackWardrobe: selectWardrobeContext(userMessage, wardrobe),
@@ -452,7 +471,10 @@ export async function requestWardrobeAwareReply(
 You can read the person's current wardrobe through the <wardrobe_reads> reference data supplied below.
 Use those local query results to answer inventory questions, including colors, garment types, sections, counts, wear history,
 and requests to find or show garments. Local wardrobe query results are the only source of truth for what they currently own.
-Never invent a garment or count. Understand synonyms and culturally varied wardrobe terminology naturally.
+Never invent a garment or count. For counts, use each query's totalMatches rather than the possibly limited returned array.
+Active and archived query sets are disjoint, so sum their totalMatches when the request intentionally spans both. A garment's
+createdAt date means it was confirmed into the wardrobe; do not describe an unconfirmed photo attachment as a saved garment.
+Understand synonyms and culturally varied wardrobe terminology naturally.
 If nothing matches, say so naturally. Do not claim to change wardrobe data.
 The device-local date is ${localDate.date} (${localDate.weekday}) in ${localDate.timeZone}. Resolve relative dates such as
 today, yesterday, tomorrow, last week, and weekday names from this context; never use the server's date or timezone.

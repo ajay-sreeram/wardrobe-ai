@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -34,6 +34,7 @@ export default function WardrobeScreen() {
   const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
   const router = useRouter();
+  const { view } = useLocalSearchParams<{ view?: string }>();
   const { width } = useWindowDimensions();
   const setDraft = useChatStore((state) => state.setDraft);
   const [sections, setSections] = useState<WardrobeSection[]>([]);
@@ -41,6 +42,18 @@ export default function WardrobeScreen() {
   const [viewMode, setViewMode] = useState<'sections' | 'grid'>('sections');
   const [query, setQuery] = useState('');
   const [gridSort, setGridSort] = useState<GridSort>('wardrobe');
+
+  useFocusEffect(useCallback(() => {
+    const frame = requestAnimationFrame(() => {
+      if (view === 'grid') {
+        setOrganizingSectionId(null);
+        setViewMode('grid');
+      } else if (view === 'sections') {
+        setViewMode('sections');
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view]));
 
   const loadSections = useCallback(async () => setSections(await getWardrobeSections(db)), [db]);
 

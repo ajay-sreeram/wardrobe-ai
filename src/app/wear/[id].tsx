@@ -145,7 +145,7 @@ export default function WearDetailsScreen() {
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {loading ? <AppText style={styles.muted}>Loading outfit…</AppText> : null}
-          {!loading && !entry ? <AppText style={styles.muted}>This Timeline entry no longer exists.</AppText> : null}
+          {!loading && !error && !entry ? <AppText style={styles.muted}>This Timeline entry no longer exists.</AppText> : null}
           {entry ? (
             <>
               <View style={styles.field}>

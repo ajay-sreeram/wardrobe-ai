@@ -11,6 +11,7 @@ import { coordinateGarmentReorder } from '@/agents/coordinator';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
 import { Chip } from '@/components/ui/Chip';
+import { DataLoadState } from '@/components/ui/DataLoadState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { GarmentTile } from '@/components/wardrobe/GarmentTile';
 import { getWardrobeSections } from '@/database/repository';
@@ -41,14 +42,22 @@ export default function WardrobeScreen() {
   const [viewMode, setViewMode] = useState<'sections' | 'grid'>('sections');
   const [query, setQuery] = useState('');
   const [gridSort, setGridSort] = useState<GridSort>('wardrobe');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadSections = useCallback(async () => setSections(await getWardrobeSections(db)), [db]);
+  const loadSections = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setSections(await getWardrobeSections(db));
+    } catch {
+      setLoadError('Your wardrobe could not be read from this device. Your saved data has not been changed.');
+    } finally {
+      setLoading(false);
+    }
+  }, [db]);
 
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    getWardrobeSections(db).then((result) => { if (active) setSections(result); });
-    return () => { active = false; };
-  }, [db]));
+  useFocusEffect(useCallback(() => { void loadSections(); }, [loadSections]));
 
   const garmentCount = sections.reduce((total, section) => total + section.garments.length, 0);
   const allGarments = useMemo(() => sections.flatMap((section) => section.garments), [sections]);
@@ -106,9 +115,24 @@ export default function WardrobeScreen() {
     );
   }
 
+  if ((loading || loadError) && !sections.length) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <ScreenHeader eyebrow="Your wardrobe" title="Wardrobe" />
+        <DataLoadState error={loadError} label="Loading wardrobe…" loading={loading} onRetry={() => { void loadSections(); }} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScreenHeader eyebrow={`${garmentCount} pieces · ${sections.length} sections`} title="Wardrobe" />
+      {loadError ? (
+        <View style={styles.refreshError}>
+          <AppText variant="caption" style={styles.refreshErrorText}>Wardrobe couldn’t refresh. Showing the last loaded pieces.</AppText>
+          <Pressable accessibilityRole="button" onPress={() => { void loadSections(); }}><AppText variant="label" style={styles.retryText}>Retry</AppText></Pressable>
+        </View>
+      ) : null}
       <View accessibilityLabel="Wardrobe view" style={styles.viewSwitch}>
         <Pressable accessibilityRole="button" accessibilityState={{ selected: viewMode === 'sections' }} onPress={() => setViewMode('sections')} style={[styles.viewOption, viewMode === 'sections' && styles.viewOptionSelected]}>
           <Ionicons color={viewMode === 'sections' ? colors.surface : colors.inkMuted} name="albums-outline" size={17} />
@@ -250,6 +274,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   viewOptionSelected: { backgroundColor: colors.moss },
   viewOptionText: { color: colors.inkMuted },
   viewOptionTextSelected: { color: colors.surface },
+  refreshError: { alignItems: 'center', backgroundColor: colors.claySoft, flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between', marginBottom: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.sm },
+  refreshErrorText: { color: colors.clay, flex: 1 },
+  retryText: { color: colors.clay },
   content: { paddingBottom: spacing.xl },
   flex: { flex: 1 },
   intro: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginHorizontal: spacing.lg, padding: spacing.md },

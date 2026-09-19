@@ -121,7 +121,7 @@ export default function SectionDetailsScreen() {
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {loading ? <AppText style={styles.muted}>Loading section…</AppText> : null}
-          {!loading && !creating && !section ? <AppText style={styles.muted}>This section is no longer available.</AppText> : null}
+          {!loading && !error && !creating && !section ? <AppText style={styles.muted}>This section is no longer available.</AppText> : null}
           {(creating || section) ? (
             <>
               <View style={styles.field}>

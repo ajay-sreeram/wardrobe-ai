@@ -120,7 +120,7 @@ export default function GarmentDetailsScreen() {
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {loading ? <AppText style={styles.muted}>Loading garment…</AppText> : null}
-          {!loading && !garment ? <AppText style={styles.muted}>This garment is no longer in your active wardrobe.</AppText> : null}
+          {!loading && !error && !garment ? <AppText style={styles.muted}>This garment is no longer in your active wardrobe.</AppText> : null}
           {garment ? (
             <>
               <View style={styles.imageWrap}>

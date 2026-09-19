@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WearCard } from '@/components/timeline/WearCard';
 import { TimelineCalendar } from '@/components/timeline/TimelineCalendar';
 import { AppText } from '@/components/ui/AppText';
+import { DataLoadState } from '@/components/ui/DataLoadState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getWearTimeline } from '@/database/repository';
 import type { WearEntry } from '@/models/wardrobe';
@@ -23,12 +24,22 @@ export default function TimelineScreen() {
   const [entries, setEntries] = useState<WearEntry[]>([]);
   const [viewMode, setViewMode] = useState<'diary' | 'calendar'>('diary');
   const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    getWearTimeline(db).then((result) => { if (active) setEntries(result); });
-    return () => { active = false; };
-  }, [db]));
+  const loadEntries = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setEntries(await getWearTimeline(db));
+    } catch {
+      setLoadError('Your Timeline could not be read from this device. Your saved data has not been changed.');
+    } finally {
+      setLoading(false);
+    }
+  }, [db]);
+
+  useFocusEffect(useCallback(() => { void loadEntries(); }, [loadEntries]));
 
   const filteredEntries = useMemo(() => {
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -45,9 +56,24 @@ export default function TimelineScreen() {
     });
   }, [entries, query]);
 
+  if ((loading || loadError) && !entries.length) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <ScreenHeader eyebrow="Your clothing diary" title="Timeline" />
+        <DataLoadState error={loadError} label="Loading Timeline…" loading={loading} onRetry={() => { void loadEntries(); }} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScreenHeader eyebrow="Your clothing diary" title="Timeline" />
+      {loadError ? (
+        <View style={styles.refreshError}>
+          <AppText variant="caption" style={styles.refreshErrorText}>Timeline couldn’t refresh. Showing the last loaded entries.</AppText>
+          <Pressable accessibilityRole="button" onPress={() => { void loadEntries(); }}><AppText variant="label" style={styles.retryText}>Retry</AppText></Pressable>
+        </View>
+      ) : null}
       <View accessibilityLabel="Timeline view" style={styles.viewSwitch}>
         <Pressable accessibilityRole="button" accessibilityState={{ selected: viewMode === 'diary' }} onPress={() => setViewMode('diary')} style={[styles.viewOption, viewMode === 'diary' && styles.viewOptionSelected]}>
           <Ionicons color={viewMode === 'diary' ? colors.surface : colors.inkMuted} name="list-outline" size={17} />
@@ -106,6 +132,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   viewOptionTextSelected: { color: colors.surface },
   searchWrap: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, marginHorizontal: spacing.lg, minHeight: 48, paddingHorizontal: spacing.md },
   searchInput: { color: colors.ink, flex: 1, fontSize: 16, minHeight: 46, paddingVertical: 10 },
+  refreshError: { alignItems: 'center', backgroundColor: colors.claySoft, flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between', marginBottom: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.sm },
+  refreshErrorText: { color: colors.clay, flex: 1 },
+  retryText: { color: colors.clay },
   content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   empty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: 72 },
   emptyIcon: { alignItems: 'center', backgroundColor: colors.claySoft, borderRadius: 30, height: 60, justifyContent: 'center', width: 60 },

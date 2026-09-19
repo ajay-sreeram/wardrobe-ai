@@ -44,6 +44,7 @@ export default function WearDetailsScreen() {
   const [entry, setEntry] = useState<WearEntry | null>(null);
   const [garments, setGarments] = useState<Garment[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [garmentQuery, setGarmentQuery] = useState('');
   const [wornAt, setWornAt] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
@@ -73,6 +74,14 @@ export default function WearDetailsScreen() {
     const garment = garments.find((item) => item.id === garmentId);
     return garment ? [garment.name] : [];
   }), [garments, selectedIds]);
+  const visibleGarments = useMemo(() => {
+    const terms = garmentQuery.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return garments;
+    return garments.filter((garment) => {
+      const searchable = [garment.name, garment.description ?? '', ...garment.tags].join(' ').toLocaleLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    });
+  }, [garmentQuery, garments]);
 
   function toggleGarment(garmentId: string) {
     setSelectedIds((current) => current.includes(garmentId) ? current.filter((idToKeep) => idToKeep !== garmentId) : [...current, garmentId]);
@@ -141,10 +150,30 @@ export default function WearDetailsScreen() {
             <>
               <View style={styles.field}>
                 <AppText variant="label">Pieces worn</AppText>
-                <AppText variant="caption" style={styles.muted}>Select every piece that belonged to this outfit.</AppText>
-                <View style={styles.pieceGrid}>
-                  {garments.map((garment) => <PieceOption garment={garment} key={garment.id} onPress={() => toggleGarment(garment.id)} selected={selectedIds.includes(garment.id)} />)}
+                <AppText variant="caption" style={styles.muted}>Select every piece that belonged to this outfit. {selectedIds.length} selected.</AppText>
+                <View style={styles.searchWrap}>
+                  <Ionicons color={colors.inkMuted} name="search-outline" size={20} />
+                  <TextInput
+                    accessibilityLabel="Search wardrobe pieces"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onChangeText={setGarmentQuery}
+                    placeholder="Search name, tags, or details"
+                    placeholderTextColor={colors.inkMuted}
+                    returnKeyType="search"
+                    style={styles.searchInput}
+                    value={garmentQuery}
+                  />
+                  {garmentQuery ? (
+                    <Pressable accessibilityLabel="Clear garment search" hitSlop={10} onPress={() => setGarmentQuery('')}>
+                      <Ionicons color={colors.inkMuted} name="close-circle" size={20} />
+                    </Pressable>
+                  ) : null}
                 </View>
+                <View style={styles.pieceGrid}>
+                  {visibleGarments.map((garment) => <PieceOption garment={garment} key={garment.id} onPress={() => toggleGarment(garment.id)} selected={selectedIds.includes(garment.id)} />)}
+                </View>
+                {!visibleGarments.length ? <AppText variant="caption" style={styles.muted}>No wardrobe pieces match this search.</AppText> : null}
                 {!selectedIds.length ? <AppText variant="caption" style={styles.error}>Keep at least one wardrobe piece in this entry.</AppText> : null}
               </View>
 
@@ -186,6 +215,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pieceImageWrap: { alignItems: 'center', backgroundColor: colors.garmentCanvas, height: 96, justifyContent: 'center' },
   pieceImage: { height: '100%', width: '100%' },
   pieceName: { minHeight: 48, padding: spacing.xs, textAlign: 'center' },
+  searchWrap: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md },
+  searchInput: { color: colors.ink, flex: 1, fontSize: 16, minHeight: 46, paddingVertical: 10 },
   check: { alignItems: 'center', backgroundColor: colors.moss, borderRadius: 13, height: 26, justifyContent: 'center', position: 'absolute', right: spacing.xs, top: spacing.xs, width: 26 },
   pressed: { opacity: 0.76 },
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radius.sm, borderWidth: 1, color: colors.ink, fontSize: 16, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: 12 },

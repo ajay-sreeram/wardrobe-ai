@@ -8,7 +8,7 @@ import type { WearEntry } from '@/models/wardrobe';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { spacing, type ThemeColors } from '@/theme/tokens';
 
-const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' });
+const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function WearCard({ entry, showLine, onPress }: { entry: WearEntry; showLine: boolean; onPress: () => void }) {
   const { colors } = useAppTheme();

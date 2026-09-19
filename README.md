@@ -46,6 +46,7 @@ The app currently includes:
 - confirmation-first conversational wear logging into the local Timeline diary
 - tappable Timeline entries with correction and deletion controls that keep garment wear statistics accurate
 - switchable Timeline diary and month-calendar views with outfit previews on logged days
+- searchable Timeline diary and wardrobe-piece search while correcting an outfit
 - pending outfit context across Chat follow-ups and combined add-plus-log handling for worn photo uploads
 - grouped review for multi-garment worn photos, with one atomic wardrobe batch and one shared Timeline outfit
 - outfit-pairing history and explicit rationale/preferences supplied to Muse for grounded recommendations

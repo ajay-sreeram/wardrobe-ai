@@ -31,7 +31,6 @@ The app currently includes:
 - switchable section rails and a virtualized all-pieces grid with name, tag, and description search
 - all-pieces sorting for wardrobe order, least worn, not worn recently, newest, and garment name
 - compact sort controls and reliable grid resets when changing an all-pieces sort order
-- live section and tag counts in Settings with direct links to the relevant wardrobe view
 - safe on-device Chat history across restarts, without retaining full user-uploaded source photos or stale confirmation cards
 - small on-device compressed thumbnails for explicitly attached Chat photos, retained across restarts but excluded from backups
 - bounded Muse context with local date/time labels plus a multi-step, read-only query loop over local wardrobe and Timeline data

@@ -1,21 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
 import { chooseWardrobeBackup, createWardrobeBackup, restoreWardrobeBackup, type WardrobeBackup } from '@/backup';
 import { AppText } from '@/components/ui/AppText';
 import { AppButton } from '@/components/ui/AppButton';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { hasApiProxy } from '@/config/providers';
-import { getWardrobeSections } from '@/database/repository';
 import { useChatStore } from '@/state/chat';
 import { useThemeStore, type ThemePreference } from '@/state/theme';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
-import { radius, spacing, type ThemeColors } from '@/theme/tokens';
+import { spacing, type ThemeColors } from '@/theme/tokens';
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();
@@ -27,39 +25,6 @@ export default function SettingsScreen() {
   const themePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
   const [backupBusy, setBackupBusy] = useState<'export' | 'restore' | null>(null);
-  const [wardrobeCounts, setWardrobeCounts] = useState({ sections: 0, tags: 0 });
-
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    getWardrobeSections(db).then((sections) => {
-      if (!active) return;
-      const tags = new Set(sections.flatMap((section) => section.garments.flatMap((garment) => garment.tags.map((tag) => tag.trim().toLocaleLowerCase()).filter(Boolean))));
-      setWardrobeCounts({ sections: sections.length, tags: tags.size });
-    }).catch(() => {
-      if (active) setWardrobeCounts({ sections: 0, tags: 0 });
-    });
-    return () => { active = false; };
-  }, [db]));
-
-  const wardrobeRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; onPress: () => void }[] = [
-    {
-      icon: 'layers-outline',
-      label: 'Manage sections',
-      value: `${wardrobeCounts.sections} ${wardrobeCounts.sections === 1 ? 'section' : 'sections'}`,
-      onPress: () => router.replace({ pathname: '/(tabs)/wardrobe', params: { view: 'sections' } }),
-    },
-    {
-      icon: 'pricetags-outline',
-      label: 'Browse & edit tags',
-      value: `${wardrobeCounts.tags} ${wardrobeCounts.tags === 1 ? 'tag' : 'tags'}`,
-      onPress: () => router.replace({ pathname: '/(tabs)/wardrobe', params: { view: 'grid' } }),
-    },
-  ];
-  const museRows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [
-    { icon: 'sparkles-outline', label: 'Muse API', value: hasApiProxy() ? 'Worker connected' : 'Not connected' },
-    { icon: 'albums-outline', label: 'Gallery scanning', value: 'Disabled' },
-    { icon: 'notifications-outline', label: 'Notifications', value: 'Off' },
-  ];
 
   function confirmClearHistory() {
     Alert.alert(
@@ -154,32 +119,6 @@ export default function SettingsScreen() {
             <Ionicons color={colors.inkMuted} name="chevron-forward" size={20} />
           </Card>
         </Pressable>
-        <View style={styles.group}>
-          {wardrobeRows.map((row, index) => (
-            <Pressable
-              accessibilityHint={row.label === 'Manage sections' ? 'Opens the section view of your wardrobe' : 'Opens all pieces, where garment tags can be searched and edited'}
-              accessibilityRole="button"
-              key={row.label}
-              onPress={row.onPress}
-              style={({ pressed }) => [styles.row, index < wardrobeRows.length - 1 && styles.rowBorder, pressed && styles.rowPressed]}>
-              <Ionicons color={colors.moss} name={row.icon} size={21} />
-              <AppText style={styles.flex}>{row.label}</AppText>
-              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
-              <Ionicons color={colors.inkMuted} name="chevron-forward" size={18} />
-            </Pressable>
-          ))}
-        </View>
-
-        <AppText variant="caption" style={styles.sectionTitle}>Muse</AppText>
-        <View style={styles.group}>
-          {museRows.map((row, index) => (
-            <View key={row.label} style={[styles.row, index < museRows.length - 1 && styles.rowBorder]}>
-              <Ionicons color={colors.moss} name={row.icon} size={21} />
-              <AppText style={styles.flex}>{row.label}</AppText>
-              <AppText variant="caption" style={styles.muted}>{row.value}</AppText>
-            </View>
-          ))}
-        </View>
 
         <AppText variant="caption" style={styles.sectionTitle}>Your data</AppText>
         <Card style={styles.localCard}>
@@ -227,12 +166,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   localIcon: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 23, height: 46, justifyContent: 'center', width: 46 },
   muted: { color: colors.inkMuted },
   warning: { color: colors.clay, marginTop: spacing.xs },
-  group: { backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden', paddingHorizontal: spacing.md },
   chatCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   dataCard: { gap: spacing.md },
   backupActions: { flexDirection: 'row', gap: spacing.sm },
-  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 58 },
-  rowBorder: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowPressed: { opacity: 0.65 },
   footnote: { color: colors.inkMuted, paddingHorizontal: spacing.sm, textAlign: 'center' },
 });

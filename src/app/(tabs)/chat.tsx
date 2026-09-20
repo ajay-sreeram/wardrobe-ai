@@ -14,6 +14,7 @@ import { StarterActions } from '@/components/chat/StarterActions';
 import { AppText } from '@/components/ui/AppText';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { hasApiProxy } from '@/config/providers';
+import type { LaunchStarter } from '@/content/launchContent';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
 import { useLaunchContentStore } from '@/state/launchContent';
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const db = useSQLiteContext();
   const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, setWelcomeText, startNewConversation } = useChatStore();
   const launchContent = useLaunchContentStore((state) => state.content);
+  const isEmptyWardrobe = useLaunchContentStore((state) => state.isEmptyWardrobe);
   const ensureLaunchContent = useLaunchContentStore((state) => state.ensureLoaded);
   const listRef = useRef<FlashListRef<ChatMessageModel>>(null);
   const sendingRef = useRef(false);
@@ -52,7 +54,7 @@ export default function ChatScreen() {
     return () => cancelAnimationFrame(frame);
   }, [messages.length]);
 
-  async function chooseImages() {
+  async function chooseImages(suggestedDraft?: string) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
@@ -87,6 +89,7 @@ export default function ChatScreen() {
         });
       }
       addPendingImages(selected);
+      if (selected.length && suggestedDraft && !draft.trim()) setDraft(suggestedDraft);
     } catch {
       addError('I could not open the photo picker. Please try again.');
     }
@@ -245,8 +248,20 @@ export default function ChatScreen() {
     void submit(draft.trim(), [...pendingImages]);
   }
 
-  function handleStarter(prompt: string) {
-    void submit(prompt, []);
+  function handleStarter(starter: LaunchStarter) {
+    if (starter.action === 'pick_garment' || starter.action === 'pick_worn_outfit') {
+      void chooseImages(starter.prompt);
+      return;
+    }
+    if (starter.action === 'explain_app') {
+      addAssistantMessage('Add garment photos in Chat and review what I find before anything is saved. Wardrobe keeps your pieces organized, and Timeline records outfits only after you confirm them. Once you have a few pieces, you can ask for outfit ideas, garment care, or help finding something you have not worn lately.');
+      return;
+    }
+    if (starter.action === 'explain_privacy') {
+      addAssistantMessage('Your wardrobe, Timeline, chat history, and saved memory stay on this device. When you ask for AI help, only the context needed for that request and photos you selected are sent through the configured AI service. The app never scans your photo library.');
+      return;
+    }
+    void submit(starter.prompt, []);
   }
 
   function handleRetry() {
@@ -285,7 +300,7 @@ export default function ChatScreen() {
           data={messages}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           keyExtractor={(item) => item.id}
-          ListFooterComponent={activeMessageCount === 1 ? <StarterActions disabled={sending || !historyReady} onSelect={handleStarter} starters={launchContent.starters} /> : null}
+          ListFooterComponent={activeMessageCount === 1 ? <StarterActions disabled={sending || !historyReady} firstUse={isEmptyWardrobe === true} onSelect={handleStarter} starters={launchContent.starters} /> : null}
           ref={listRef}
           renderItem={({ item }) => <ChatMessage message={item} onRetry={item.kind === 'error' && item.id === failedSubmission?.errorId ? handleRetry : undefined} />}
         />
@@ -310,7 +325,7 @@ export default function ChatScreen() {
             </View>
           ) : null}
           <View style={styles.composer}>
-            <Pressable accessibilityLabel="Attach garment photo" disabled={!historyReady || pendingImages.length >= 4 || sending} hitSlop={8} onPress={chooseImages} style={styles.attach}>
+            <Pressable accessibilityLabel="Attach garment photo" disabled={!historyReady || pendingImages.length >= 4 || sending} hitSlop={8} onPress={() => { void chooseImages(); }} style={styles.attach}>
               <Ionicons color={colors.moss} name="add" size={24} />
             </Pressable>
             <TextInput

@@ -7,13 +7,19 @@ import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 const icons = ['sparkles-outline', 'refresh-outline', 'analytics-outline', 'today-outline'] as const;
+const actionIcons = {
+  explain_app: 'git-network-outline',
+  explain_privacy: 'lock-closed-outline',
+  pick_garment: 'shirt-outline',
+  pick_worn_outfit: 'today-outline',
+} as const;
 
-export function StarterActions({ disabled, onSelect, starters }: { disabled: boolean; onSelect: (prompt: string) => void; starters: LaunchStarter[] }) {
+export function StarterActions({ disabled, firstUse = false, onSelect, starters }: { disabled: boolean; firstUse?: boolean; onSelect: (starter: LaunchStarter) => void; starters: LaunchStarter[] }) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
-      <AppText variant="caption" style={styles.eyebrow}>Try asking</AppText>
+      <AppText variant="caption" style={styles.eyebrow}>{firstUse ? 'Start here' : 'Try asking'}</AppText>
       <View style={styles.grid}>
         {starters.map((starter, index) => (
           <Pressable
@@ -22,10 +28,10 @@ export function StarterActions({ disabled, onSelect, starters }: { disabled: boo
             accessibilityRole="button"
             disabled={disabled}
             key={`${index}-${starter.title}`}
-            onPress={() => onSelect(starter.prompt)}
+            onPress={() => onSelect(starter)}
             style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && styles.disabled]}>
             <View style={styles.icon}>
-              <Ionicons color={colors.clay} name={icons[index] ?? 'chatbubble-ellipses-outline'} size={20} />
+              <Ionicons color={colors.clay} name={starter.action ? actionIcons[starter.action] : (icons[index] ?? 'chatbubble-ellipses-outline')} size={20} />
             </View>
             <AppText variant="label">{starter.title}</AppText>
             <AppText variant="caption" style={styles.subtitle}>{starter.subtitle}</AppText>
@@ -34,7 +40,7 @@ export function StarterActions({ disabled, onSelect, starters }: { disabled: boo
       </View>
       <View style={styles.contextNote}>
         <Ionicons color={colors.moss} name="lock-closed-outline" size={14} />
-        <AppText variant="caption" style={styles.contextText}>Uses your local wardrobe, memory, and Timeline context.</AppText>
+        <AppText variant="caption" style={styles.contextText}>{firstUse ? 'You choose every photo. The app never scans your library.' : 'Uses your local wardrobe, memory, and Timeline context.'}</AppText>
       </View>
     </View>
   );

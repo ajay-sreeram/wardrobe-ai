@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
@@ -12,19 +11,16 @@ import { Card } from '@/components/ui/Card';
 import { hasApiProxy } from '@/config/providers';
 import type { ChatMessage } from '@/models/agent';
 import { useChatStore } from '@/state/chat';
-import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
+import { useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type DuplicateMessage = Extract<ChatMessage, { kind: 'duplicate' }>;
 
 export function DuplicateCandidateCard({ message }: { message: DuplicateMessage }) {
-  const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const db = useSQLiteContext();
   const replaceMessage = useChatStore((state) => state.replaceMessage);
-  const [choice, setChoice] = useState(false);
-  const [logged, setLogged] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +41,17 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
           wornAt: message.wearContext.wornAt,
           note: message.wearContext.note,
         });
-        setLogged(true);
+        replaceMessage(message.id, {
+          id: message.id,
+          kind: 'wear_status',
+          garmentNames: [message.existingGarment.name],
+          garments: [{ ...message.existingGarment, wearCount: message.existingGarment.wearCount + 1, lastWornAt: message.wearContext.wornAt }],
+          wornAt: message.wearContext.wornAt,
+          logged: true,
+        });
+      } else {
+        replaceMessage(message.id, { id: message.id, kind: 'wardrobe_results', garments: [message.existingGarment] });
       }
-      setChoice(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'I could not use this wardrobe item.');
     } finally {
@@ -97,18 +101,6 @@ export function DuplicateCandidateCard({ message }: { message: DuplicateMessage 
     }
   }
 
-  if (choice) {
-    return (
-      <Card style={styles.complete}>
-        <Ionicons color={colors.moss} name="checkmark-circle" size={24} />
-        <View style={styles.flex}>
-          <AppText variant="label">Using {message.existingGarmentName}</AppText>
-          <AppText variant="caption" style={styles.muted}>{logged ? 'No duplicate was created, and the wear was added to Timeline.' : 'No duplicate garment was created.'}</AppText>
-        </View>
-      </Card>
-    );
-  }
-
   return (
     <Card style={styles.card}>
       <ExpandableImage
@@ -139,5 +131,4 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   error: { color: colors.danger },
-  complete: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, width: '88%' },
 });

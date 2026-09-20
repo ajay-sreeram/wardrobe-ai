@@ -34,6 +34,13 @@ export type WardrobeChatGarment = {
 
 export type WearContext = { wornAt: string; note: string };
 
+export type ExistingGarmentReference = {
+  garmentId: string;
+  garmentName: string;
+  userMessage: string;
+  memoryFacts: string[];
+};
+
 export type GarmentBatchItem = {
   garmentName: string;
   description: string;
@@ -62,11 +69,11 @@ type ChatMessageContent =
   | { id: string; kind: 'wardrobe_results'; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'outfit_suggestion'; suggestionKind?: 'outfit' | 'packing' | 'capsule'; title: string; reason: string; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'wardrobe_insight'; insightKind: 'rediscovery' | 'rotation' | 'pairing' | 'habit'; title: string; summary: string; garments: WardrobeChatGarment[] }
-  | { id: string; kind: 'wear_confirmation'; garments: WardrobeChatGarment[]; garmentIds: string[]; wornAt: string; note: string }
-  | { id: string; kind: 'wear_status'; garmentNames: string[]; wornAt: string; logged: boolean }
+  | { id: string; kind: 'wear_confirmation'; garments: WardrobeChatGarment[]; garmentIds: string[]; wornAt: string; note: string; existingReferences?: ExistingGarmentReference[] }
+  | { id: string; kind: 'wear_status'; garmentNames: string[]; garments?: WardrobeChatGarment[]; wornAt: string; logged: boolean }
   | { id: string; kind: 'action_confirmation'; title: string; description: string; confirmLabel: string; action: WardrobeMutation; garments: WardrobeChatGarment[] }
   | { id: string; kind: 'action_status'; summary: string; applied: boolean }
-  | { id: string; kind: 'duplicate'; garmentName: string; category: string; description: string; colors: string[]; tags: string[]; sourceImageUri: string; sourceImageMimeType: string | null; existingGarmentId: string; existingGarmentName: string; existingImageUri: string; matchReason: string; matchConfidence: number; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
+  | { id: string; kind: 'duplicate'; garmentName: string; category: string; description: string; colors: string[]; tags: string[]; sourceImageUri: string; sourceImageMimeType: string | null; existingGarment: WardrobeChatGarment; existingGarmentId: string; existingGarmentName: string; existingImageUri: string; matchReason: string; matchConfidence: number; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
   | { id: string; kind: 'confirmation'; title: string; description: string; garmentName: string; tags: string[]; canonicalImageUri: string; userMessage: string; memoryFacts: string[]; suggestedSectionId: string; suggestedSectionName: string; wearContext: WearContext | null }
   | { id: string; kind: 'garment_batch_confirmation'; garments: GarmentBatchItem[]; userMessage: string; memoryFacts: string[]; wearContext: WearContext };
 

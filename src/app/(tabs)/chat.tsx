@@ -138,6 +138,42 @@ export default function ChatScreen() {
           return;
         }
 
+        const existingMatches = analysis.garments.flatMap((garment) => 'duplicateCandidate' in garment ? [{ garment, existing: garment.duplicateCandidate }] : []);
+        const existingIds = existingMatches.map(({ existing }) => existing.id);
+        const isExistingWornOutfit = Boolean(
+          analysis.wearContext
+          && analysis.garments.length > 1
+          && existingMatches.length === analysis.garments.length
+          && new Set(existingIds).size === existingIds.length,
+        );
+        if (isExistingWornOutfit && analysis.wearContext) {
+          addMessages([{
+            id: `wear-confirmation-${Date.now()}`,
+            kind: 'wear_confirmation',
+            garments: existingMatches.map(({ existing }) => ({
+              id: existing.id,
+              name: existing.name,
+              sectionName: existing.sectionName,
+              description: existing.description,
+              tags: existing.tags,
+              canonicalImage: existing.canonicalImage,
+              wearCount: existing.wearCount,
+              lastWornAt: existing.lastWornAt,
+            })),
+            garmentIds: existingIds,
+            wornAt: analysis.wearContext.wornAt,
+            note: analysis.wearContext.note,
+            existingReferences: existingMatches.map(({ existing }) => ({
+              garmentId: existing.id,
+              garmentName: existing.name,
+              userMessage: submittedText,
+              memoryFacts: analysis.memoryFacts,
+            })),
+          }]);
+          if (analysis.note) addAssistantMessage(analysis.note);
+          return;
+        }
+
         const isNewWornOutfit = Boolean(
           analysis.wearContext
           && analysis.garments.length > 1
@@ -179,13 +215,23 @@ export default function ChatScreen() {
               existingGarmentId: garment.duplicateCandidate.id,
               existingGarmentName: garment.duplicateCandidate.name,
               existingImageUri: garment.duplicateCandidate.canonicalImage,
+              existingGarment: {
+                id: garment.duplicateCandidate.id,
+                name: garment.duplicateCandidate.name,
+                sectionName: garment.duplicateCandidate.sectionName,
+                description: garment.duplicateCandidate.description,
+                tags: garment.duplicateCandidate.tags,
+                canonicalImage: garment.duplicateCandidate.canonicalImage,
+                wearCount: garment.duplicateCandidate.wearCount,
+                lastWornAt: garment.duplicateCandidate.lastWornAt,
+              },
               matchReason: garment.duplicateReason,
               matchConfidence: garment.duplicateConfidence,
               userMessage: submittedText,
               memoryFacts: analysis.memoryFacts,
               suggestedSectionId: garment.suggestedSectionId,
               suggestedSectionName: garment.suggestedSectionName,
-              wearContext: analysis.wearContext,
+              wearContext: analysis.garments.length === 1 ? analysis.wearContext : null,
             };
           }
           return {
@@ -199,7 +245,7 @@ export default function ChatScreen() {
             memoryFacts: analysis.memoryFacts,
             suggestedSectionId: garment.suggestedSectionId,
             suggestedSectionName: garment.suggestedSectionName,
-            wearContext: analysis.wearContext,
+            wearContext: analysis.garments.length === 1 ? analysis.wearContext : null,
             tags: [garment.category, ...garment.colors, ...garment.tags].filter((tag, tagIndex, tags) => tags.indexOf(tag) === tagIndex).slice(0, 12),
           };
         }));

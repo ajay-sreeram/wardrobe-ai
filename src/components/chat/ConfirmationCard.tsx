@@ -10,15 +10,18 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import type { ChatMessage } from '@/models/agent';
+import { useChatStore } from '@/state/chat';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 type ConfirmationMessage = Extract<ChatMessage, { kind: 'confirmation' }>;
 
-export function ConfirmationCard({ title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName, wearContext }: ConfirmationMessage) {
+export function ConfirmationCard({ id, title, description, garmentName, tags, canonicalImageUri, userMessage, memoryFacts, suggestedSectionId, suggestedSectionName, wearContext }: ConfirmationMessage) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
+  const addError = useChatStore((state) => state.addError);
+  const replaceMessage = useChatStore((state) => state.replaceMessage);
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -27,7 +30,7 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
     setError(null);
     setSaving(true);
     try {
-      const garmentId = await coordinateGarmentAddition({
+      const garment = await coordinateGarmentAddition({
         db,
         garmentName,
         sectionId: suggestedSectionId,
@@ -41,18 +44,25 @@ export function ConfirmationCard({ title, description, garmentName, tags, canoni
       if (logWear && wearContext) {
         try {
           await coordinateWearRecord(db, {
-            garmentIds: [garmentId],
+            garmentIds: [garment.id],
             garmentNames: [garmentName],
             wornAt: wearContext.wornAt,
             note: wearContext.note,
           });
-          setChoice(`Added to ${suggestedSectionName} and Timeline`);
+          replaceMessage(id, {
+            id,
+            kind: 'wear_status',
+            garmentNames: [garment.name],
+            garments: [{ ...garment, wearCount: garment.wearCount + 1, lastWornAt: wearContext.wornAt }],
+            wornAt: wearContext.wornAt,
+            logged: true,
+          });
         } catch {
-          setChoice(`Added to ${suggestedSectionName}`);
-          setError('The garment was saved, but I could not add the wear entry to Timeline.');
+          replaceMessage(id, { id, kind: 'wardrobe_results', garments: [garment] });
+          addError('The garment was saved, but I could not add the wear entry to Timeline.');
         }
       } else {
-        setChoice(`Added to ${suggestedSectionName}`);
+        replaceMessage(id, { id, kind: 'wardrobe_results', garments: [garment] });
       }
     } catch {
       setError('I could not save this garment locally. Please try again.');

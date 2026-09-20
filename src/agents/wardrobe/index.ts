@@ -236,7 +236,7 @@ export async function readWardrobeWearHistory(db: SQLiteDatabase, limit?: number
   }));
 }
 
-export type DuplicateCandidate = Garment & { canonicalImage: string };
+export type DuplicateCandidate = Garment & { canonicalImage: string; sectionName: string };
 
 function tokens(values: string[]) {
   return new Set(values.join(' ').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
@@ -244,9 +244,10 @@ function tokens(values: string[]) {
 
 export async function findPotentialDuplicateCandidates(db: SQLiteDatabase, observation: GarmentObservation): Promise<DuplicateCandidate[]> {
   const target = tokens([observation.name, observation.category, ...observation.colors, ...observation.tags]);
-  const garments = await getActiveGarments(db);
+  const [garments, sections] = await Promise.all([getActiveGarments(db), getWardrobeSectionOptions(db)]);
+  const sectionNames = new Map(sections.map((section) => [section.id, section.name]));
   return garments
-    .filter((garment): garment is DuplicateCandidate => Boolean(garment.canonicalImage))
+    .filter((garment): garment is Garment & { canonicalImage: string } => Boolean(garment.canonicalImage))
     .map((garment) => {
       const candidate = tokens([garment.name, garment.description ?? '', ...garment.tags]);
       const overlap = [...target].filter((token) => candidate.has(token)).length;
@@ -255,5 +256,5 @@ export async function findPotentialDuplicateCandidates(db: SQLiteDatabase, obser
     .filter(({ overlap }) => overlap > 0)
     .sort((left, right) => right.overlap - left.overlap)
     .slice(0, 2)
-    .map(({ garment }) => garment);
+    .map(({ garment }) => ({ ...garment, sectionName: sectionNames.get(garment.sectionId ?? '') ?? 'Unfiled' }));
 }

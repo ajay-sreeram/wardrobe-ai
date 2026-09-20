@@ -9,6 +9,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
 import type { ChatMessage } from '@/models/agent';
+import { useChatStore } from '@/state/chat';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 
@@ -18,9 +19,10 @@ export function GarmentBatchConfirmationCard({ message }: { message: BatchMessag
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
+  const addError = useChatStore((state) => state.addError);
+  const replaceMessage = useChatStore((state) => state.replaceMessage);
   const [selected, setSelected] = useState(() => message.garments.map((_, index) => index));
   const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function toggle(index: number) {
@@ -34,7 +36,7 @@ export function GarmentBatchConfirmationCard({ message }: { message: BatchMessag
     setSaving(true);
     setError(null);
     try {
-      const garmentIds = await coordinateGarmentBatchAddition({
+      const savedGarments = await coordinateGarmentBatchAddition({
         db,
         garments: garments.map((garment) => ({
           garmentName: garment.garmentName,
@@ -50,38 +52,31 @@ export function GarmentBatchConfirmationCard({ message }: { message: BatchMessag
       if (logWear) {
         try {
           await coordinateWearRecord(db, {
-            garmentIds,
+            garmentIds: savedGarments.map((garment) => garment.id),
             garmentNames: garments.map((garment) => garment.garmentName),
             wornAt: message.wearContext.wornAt,
             note: message.wearContext.note,
           });
-          setResult(`${garments.length} garments added as one outfit`);
+          replaceMessage(message.id, {
+            id: message.id,
+            kind: 'wear_status',
+            garmentNames: savedGarments.map((garment) => garment.name),
+            garments: savedGarments.map((garment) => ({ ...garment, wearCount: garment.wearCount + 1, lastWornAt: message.wearContext.wornAt })),
+            wornAt: message.wearContext.wornAt,
+            logged: true,
+          });
         } catch {
-          setResult(`${garments.length} garments added to your wardrobe`);
-          setError('The garments were saved, but I could not add the outfit to Timeline.');
+          replaceMessage(message.id, { id: message.id, kind: 'wardrobe_results', garments: savedGarments });
+          addError('The garments were saved, but I could not add the outfit to Timeline.');
         }
       } else {
-        setResult(`${garments.length} garments added to your wardrobe`);
+        replaceMessage(message.id, { id: message.id, kind: 'wardrobe_results', garments: savedGarments });
       }
     } catch {
       setError('I could not save this outfit locally. Nothing was added to your wardrobe.');
     } finally {
       setSaving(false);
     }
-  }
-
-  if (result) {
-    return (
-      <Card style={styles.complete}>
-        <Ionicons color={colors.moss} name="checkmark-circle" size={24} />
-        <View style={styles.flex}>
-          <AppText variant="label">{result}</AppText>
-          <AppText variant="caption" style={error ? styles.error : styles.muted}>
-            {error ?? `${message.wearContext.wornAt}${message.wearContext.note ? ` · ${message.wearContext.note}` : ''}`}
-          </AppText>
-        </View>
-      </Card>
-    );
   }
 
   return (
@@ -125,7 +120,7 @@ export function GarmentBatchConfirmationCard({ message }: { message: BatchMessag
       <AppButton disabled={!selected.length} label="Add & log as one outfit" loading={saving} onPress={() => save(true)} />
       <View style={styles.actions}>
         <AppButton disabled={!selected.length} label="Add only" loading={saving} onPress={() => save(false)} style={styles.flex} tone="secondary" />
-        <AppButton disabled={saving} label="Not mine" onPress={() => setResult('No garments added')} style={styles.flex} tone="quiet" />
+        <AppButton disabled={saving} label="Not mine" onPress={() => replaceMessage(message.id, { id: message.id, kind: 'wear_status', garmentNames: [], wornAt: message.wearContext.wornAt, logged: false })} style={styles.flex} tone="quiet" />
       </View>
       {error ? <AppText variant="caption" style={styles.error}>{error}</AppText> : null}
     </Card>
@@ -148,5 +143,4 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   error: { color: colors.danger },
-  complete: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, width: '88%' },
 });

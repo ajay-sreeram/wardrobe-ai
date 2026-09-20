@@ -57,7 +57,7 @@ function recentConversationContext(messages: ChatMessage[]) {
     if (message.kind === 'confirmation') return [`${time} Photo finding awaiting review: observed ${message.garmentName} as a new piece; details: ${message.description}; tags: ${message.tags.join(', ')}${message.wearContext ? `; reported worn ${message.wearContext.wornAt}` : ''}.`];
     if (message.kind === 'garment_batch_confirmation') return [`${time} Photo findings awaiting review: ${message.garments.map((garment) => `${garment.garmentName} (${garment.description})`).join('; ')}; reported worn ${message.wearContext.wornAt}.`];
     if (message.kind === 'wear_confirmation') return [`${time} Pending wear proposal for ${message.wornAt}: ${message.garments.map((garment) => `${garment.name} [${garment.id}]`).join(', ')}${message.note ? `; context: ${message.note}` : ''}`];
-    if (message.kind === 'wear_status') return [`${time} Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garmentNames.join(', ')}`];
+    if (message.kind === 'wear_status') return [`${time} Wear proposal ${message.logged ? 'logged' : 'cancelled'}: ${message.garments?.map((garment) => `${garment.name} [${garment.id}]`).join(', ') || message.garmentNames.join(', ')}`];
     if (message.kind === 'action_confirmation') return [`${time} Pending local change awaiting confirmation: ${message.description}`];
     if (message.kind === 'action_status') return [`${time} Local change ${message.applied ? 'confirmed' : 'cancelled'}: ${message.summary}`];
     return [];
@@ -307,7 +307,9 @@ export async function coordinateGarmentAddition({
     canonicalImageUri,
   });
   await rememberGarmentAddition({ garmentId, garmentName, sectionName, userMessage, memoryFacts }).catch(() => undefined);
-  return garmentId;
+  const saved = await readWardrobeCatalog(db).then((items) => items.find((item) => item.id === garmentId));
+  if (!saved) throw new Error('The garment was saved but could not be reloaded.');
+  return saved;
 }
 
 export async function coordinateGarmentBatchAddition({
@@ -336,7 +338,10 @@ export async function coordinateGarmentBatchAddition({
     memoryFacts: [],
   }))).catch(() => undefined);
   await rememberExplicitWardrobeFacts(memoryFacts).catch(() => undefined);
-  return garmentIds;
+  const savedById = new Map((await readWardrobeCatalog(db)).map((garment) => [garment.id, garment]));
+  const saved = garmentIds.flatMap((garmentId) => savedById.get(garmentId) ?? []);
+  if (saved.length !== garmentIds.length) throw new Error('The garments were saved but could not be reloaded.');
+  return saved;
 }
 
 export async function coordinateExistingGarmentReference(input: { garmentId: string; garmentName: string; userMessage: string; memoryFacts: string[] }) {

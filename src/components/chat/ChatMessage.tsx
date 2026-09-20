@@ -7,6 +7,7 @@ import { ActionConfirmationCard } from '@/components/chat/ActionConfirmationCard
 import { ConfirmationCard } from '@/components/chat/ConfirmationCard';
 import { DuplicateCandidateCard } from '@/components/chat/DuplicateCandidateCard';
 import { GarmentBatchConfirmationCard } from '@/components/chat/GarmentBatchConfirmationCard';
+import { GarmentCollectionCard } from '@/components/chat/GarmentCollectionCard';
 import { ExpandableImage } from '@/components/chat/ExpandableImage';
 import { OutfitSuggestionCard } from '@/components/chat/OutfitSuggestionCard';
 import { WardrobeResultsCard } from '@/components/chat/WardrobeResultsCard';
@@ -49,6 +50,16 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
     );
   }
   if (message.kind === 'wear_status') {
+    if (message.logged && message.garments?.length) {
+      return (
+        <GarmentCollectionCard
+          description={`Logged for ${message.wornAt}.`}
+          eyebrow="Timeline updated"
+          garments={message.garments}
+          title="Outfit saved"
+        />
+      );
+    }
     return (
       <View style={styles.statusNote}>
         <Ionicons color={message.logged ? colors.moss : colors.inkMuted} name={message.logged ? 'checkmark-circle' : 'close-circle-outline'} size={20} />

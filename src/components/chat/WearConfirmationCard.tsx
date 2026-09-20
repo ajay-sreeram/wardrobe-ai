@@ -4,7 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { coordinateWearRecord } from '@/agents/coordinator';
+import { coordinateExistingGarmentReference, coordinateWearRecord } from '@/agents/coordinator';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Card } from '@/components/ui/Card';
@@ -32,6 +32,7 @@ export function WearConfirmationCard({ message }: { message: WearConfirmationMes
       id: message.id,
       kind: 'wear_status',
       garmentNames,
+      garments: logged ? message.garments : undefined,
       wornAt: message.wornAt,
       logged,
     });
@@ -47,6 +48,7 @@ export function WearConfirmationCard({ message }: { message: WearConfirmationMes
         wornAt: message.wornAt,
         note: message.note,
       });
+      await Promise.all((message.existingReferences ?? []).map(coordinateExistingGarmentReference));
       finish(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'I could not log this outfit.');

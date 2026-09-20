@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Markdown from 'react-native-markdown-renderer';
 
 import { AgentProgress } from '@/components/chat/AgentProgress';
 import { ActionConfirmationCard } from '@/components/chat/ActionConfirmationCard';
@@ -19,6 +20,7 @@ import { radius, spacing, type ThemeColors } from '@/theme/tokens';
 export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; onRetry?: () => void }) {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const markdownStyles = useThemedStyles(createMarkdownStyles);
   if (message.kind === 'conversation_boundary') {
     return (
       <View accessibilityLabel="New conversation" style={styles.boundary}>
@@ -74,10 +76,36 @@ export function ChatMessage({ message, onRetry }: { message: ChatMessageModel; o
   const user = message.role === 'user';
   return (
     <View style={[styles.bubble, user ? styles.user : styles.assistant]}>
-      <AppText style={user ? styles.userText : undefined}>{message.text}</AppText>
+      {user ? (
+        <AppText style={styles.userText}>{message.text}</AppText>
+      ) : (
+        <Markdown allowedImageHandlers={[]} defaultImageHandler={null} style={markdownStyles}>
+          {message.text}
+        </Markdown>
+      )}
     </View>
   );
 }
+
+const createMarkdownStyles = (colors: ThemeColors) => StyleSheet.create({
+  text: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  paragraph: { marginBottom: spacing.xs },
+  headingContainer: { marginBottom: spacing.xs, marginTop: spacing.sm },
+  heading: { color: colors.ink },
+  heading1: { fontSize: 22, lineHeight: 28 },
+  heading2: { fontSize: 20, lineHeight: 26 },
+  heading3: { fontSize: 18, lineHeight: 24 },
+  heading1Container: { borderBottomColor: colors.line },
+  heading2Container: { borderBottomColor: colors.line },
+  list: { marginBottom: spacing.xs },
+  listUnorderedItemIcon: { color: colors.ink, lineHeight: 23 },
+  listOrderedItemIcon: { color: colors.ink, lineHeight: 23 },
+  codeInline: { backgroundColor: colors.surfaceMuted, color: colors.ink },
+  codeBlock: { backgroundColor: colors.surfaceMuted, color: colors.ink, marginBottom: spacing.sm },
+  blockquote: { borderLeftColor: colors.clay, marginBottom: spacing.sm },
+  link: { color: colors.clay },
+  hr: { backgroundColor: colors.line, marginBottom: spacing.sm, marginTop: spacing.sm },
+});
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   bubble: { borderRadius: radius.md, maxWidth: '84%', paddingHorizontal: spacing.md, paddingVertical: 12 },

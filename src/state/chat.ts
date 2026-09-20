@@ -29,6 +29,7 @@ type ChatState = {
   startNewConversation: () => void;
   clearHistory: () => void;
   addPendingImages: (images: PendingChatImage[]) => void;
+  setPendingImageThumbnail: (id: string, thumbnail: { uri: string; width: number; height: number }) => void;
   removePendingImage: (id: string) => void;
   sendMessage: (images: ChatMessage[], text?: string) => void;
   addMessages: (messages: ChatMessage[]) => void;
@@ -105,6 +106,20 @@ export const useChatStore = create<ChatState>((set) => ({
     set((state) => ({ draft: '', messages: [welcomeMessage(state.welcomeText)], pendingImages: [] }));
   },
   addPendingImages: (images) => set((state) => ({ pendingImages: [...state.pendingImages, ...images].slice(0, 4) })),
+  setPendingImageThumbnail: (id, thumbnail) => set((state) => {
+    if (!state.pendingImages.some((image) => image.id === id)) {
+      removeChatThumbnail(thumbnail.uri);
+      return {};
+    }
+    return {
+      pendingImages: state.pendingImages.map((image) => image.id === id ? {
+        ...image,
+        thumbnailUri: thumbnail.uri,
+        thumbnailWidth: thumbnail.width,
+        thumbnailHeight: thumbnail.height,
+      } : image),
+    };
+  }),
   removePendingImage: (id) => set((state) => {
     const removed = state.pendingImages.find((image) => image.id === id);
     removeChatThumbnail(removed?.thumbnailUri ?? null);

@@ -18,6 +18,7 @@ import type { LaunchStarter } from '@/content/launchContent';
 import type { ChatMessage as ChatMessageModel } from '@/models/agent';
 import { type PendingChatImage, useChatStore } from '@/state/chat';
 import { useLaunchContentStore } from '@/state/launchContent';
+import { readChatImageBase64 } from '@/storage/chatImageData';
 import { saveChatThumbnail } from '@/storage/chatThumbnails';
 import { useAppTheme, useThemedStyles } from '@/theme/AppThemeProvider';
 import { radius, spacing, type ThemeColors } from '@/theme/tokens';
@@ -28,7 +29,7 @@ export default function ChatScreen() {
   const { colors } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const db = useSQLiteContext();
-  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, setWelcomeText, startNewConversation } = useChatStore();
+  const { addAssistantMessage, addError, addMessages, addPendingImages, draft, historyReady, hydrateHistory, messages, pendingImages, removeMessage, removePendingImage, sendMessage, setDraft, setPendingImageThumbnail, setWelcomeText, startNewConversation } = useChatStore();
   const launchContent = useLaunchContentStore((state) => state.content);
   const isEmptyWardrobe = useLaunchContentStore((state) => state.isEmptyWardrobe);
   const ensureLaunchContent = useLaunchContentStore((state) => state.ensureLoaded);
@@ -54,11 +55,20 @@ export default function ChatScreen() {
     return () => cancelAnimationFrame(frame);
   }, [messages.length]);
 
+  async function preparePendingThumbnail(uri: string, id: string) {
+    try {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const thumbnail = saveChatThumbnail(await readChatImageBase64(uri), id);
+      setPendingImageThumbnail(id, thumbnail);
+    } catch {
+      // The selected photo remains visible and usable even if a durable chat preview cannot be created.
+    }
+  }
+
   async function chooseImages(suggestedDraft?: string) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
-        base64: true,
         mediaTypes: ['images'],
         orderedSelection: true,
         quality: 0.9,
@@ -67,29 +77,25 @@ export default function ChatScreen() {
       if (result.canceled) return;
 
       const batchId = Date.now();
-      const selected: PendingChatImage[] = [];
-      for (const [index, asset] of result.assets.entries()) {
+      const selected: PendingChatImage[] = result.assets.map((asset, index) => {
         const id = `observation-${batchId}-${index}`;
-        let thumbnail: ReturnType<typeof saveChatThumbnail> | null = null;
-        try {
-          thumbnail = asset.base64 ? saveChatThumbnail(asset.base64, id) : null;
-        } catch {
-          // The source photo remains usable for this message even if its small history preview cannot be created.
-        }
-        selected.push({
+        return {
           id,
           uri: asset.uri,
           width: asset.width,
           height: asset.height,
           fileName: asset.fileName ?? null,
           mimeType: asset.mimeType ?? null,
-          thumbnailUri: thumbnail?.uri ?? null,
-          thumbnailWidth: thumbnail?.width ?? null,
-          thumbnailHeight: thumbnail?.height ?? null,
-        });
-      }
+          thumbnailUri: null,
+          thumbnailWidth: null,
+          thumbnailHeight: null,
+        };
+      });
       addPendingImages(selected);
       if (selected.length && suggestedDraft && !draft.trim()) setDraft(suggestedDraft);
+      result.assets.forEach((asset, index) => {
+        void preparePendingThumbnail(asset.uri, selected[index].id);
+      });
     } catch {
       addError('I could not open the photo picker. Please try again.');
     }
